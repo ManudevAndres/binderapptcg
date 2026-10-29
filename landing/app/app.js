@@ -35,11 +35,31 @@ function priceLabel(p) {
   return `<span class="price${p.price >= 20 ? " hot" : ""}">${fmt(p.price)}</span>`;
 }
 
+const flag = (l) => LANG_FLAGS[l] || l;
+const langName = (l) => LANG_NAMES[l] || l;
+
+// Carta con su idProduct de Cardmarket (para enlazar la carta exacta)
+function withCm(card) {
+  const cm = card.idProduct || prices.get(card.id)?.idProduct || State.data.meta[card.id]?.cm;
+  if (cm && !State.data.meta[card.id]?.cm) State.setCardmarketId(card.id, cm);
+  return cm ? { ...card, idProduct: cm } : card;
+}
+
+function langSelect(g, value, attrs = "") {
+  return `<select class="select lang-select" ${attrs}>${LANGS[g].map((l) =>
+    `<option value="${l}"${l === value ? " selected" : ""}>${flag(l)} ${langName(l)}</option>`).join("")}</select>`;
+}
+
+// Ofertas de CardTrader de una carta (para mostrar "desde X €" por idioma en la lupa)
+async function cardTraderOffers(id, g, s) {
+  try { return (await cardTraderData([{ g, s }])).cards[id] || null; } catch { return null; }
+}
+
 // Carta guardada en State.meta → objeto carta + set
 function fromMeta(id) {
   const m = State.data.meta[id] || {};
   return {
-    card: { id, name: m.name || id, n: m.n || "", code: m.code, img: m.img, big: m.big, parallel: m.par },
+    card: { id, name: m.name || id, n: m.n || "", code: m.code, img: m.img, big: m.big, parallel: m.par, idProduct: m.cm || null },
     g: m.g || State.data.owned[id]?.g || "pokemon",
     set: { id: m.s || State.data.owned[id]?.s, name: m.sn || m.s || "" },
   };
@@ -110,6 +130,7 @@ function cardTile(card, g, set, { mode = "toggle", sub = null } = {}) {
           : `<div class="noimg">${escapeHtml(card.name)}<br>#${escapeHtml(card.n)}</div>`}</div>
       </button>
       <span class="check" aria-hidden="true">✓</span>
+      <span class="flag" title="${has ? langName(State.ownedLang(card.id)) : ""}">${has ? flag(State.ownedLang(card.id)) : ""}</span>
       ${card.parallel ? `<span class="tag">Paralela</span>` : ""}
       <div class="c-tools">
         <button class="tool" data-act="zoom" aria-label="Ver en grande" title="Ver en grande">🔍</button>
@@ -133,6 +154,9 @@ function refreshTile(id) {
     el.classList.toggle("have", has);
     el.classList.toggle("miss", !has);
     el.querySelector(".c-main").setAttribute("aria-pressed", has);
+    const fl = el.querySelector(".flag");
+    fl.textContent = has ? flag(State.ownedLang(id)) : "";
+    fl.title = has ? langName(State.ownedLang(id)) : "";
     const qty = State.cartQty(id);
     const cartBtn = el.querySelector('[data-act="cart"]');
     cartBtn.classList.toggle("on", qty > 0);
@@ -156,9 +180,10 @@ function gridClick(e, sequence) {
     else refreshTile(t.card.id);
     if (current) updateSetStats();
   } else if (act === "cart") {
-    State.addToCart(t.card, t.g, t.set);
+    const l = State.lang(t.g);
+    State.addToCart(withCm(t.card), t.g, t.set, l);
     refreshTile(t.card.id);
-    toast(`${t.card.name} añadida al carrito`);
+    toast(`${t.card.name} (${flag(l)}) añadida al carrito`);
   } else {
     openCard(t.card.id, sequence());
   }
@@ -167,17 +192,21 @@ function gridClick(e, sequence) {
 // ---------- Lupa (ficha de carta) ----------
 let modalSeq = [];
 let modalId = null;
+let modalLang = null;
 
-function openCard(id, sequence = [id]) {
+function openCard(id, sequence = [id], lang = null) {
   modalSeq = sequence;
   modalId = id;
+  modalLang = lang;
   renderModal();
   $("card-modal").hidden = false;
 }
 
 function renderModal() {
   const t = tiles.get(modalId) || fromMeta(modalId);
-  const { card, g, set } = t;
+  const { g, set } = t;
+  const card = withCm(t.card);
+  const lang = modalLang || State.ownedLang(card.id) || State.lang(g);
   const big = card.big || card.img;
   $("cm-img").innerHTML = big
     ? `<img src="${big}" alt="${escapeHtml(card.name)}" data-fallback="${card.img || ""}">`
@@ -187,21 +216,40 @@ function renderModal() {
   $("cm-set").textContent = `${GAMES[g].name} · ${set.name || ""} · #${card.code || card.n}${card.parallel ? " · Paralela" : ""}`;
   $("cm-name").textContent = card.name;
   const p = prices.get(card.id);
-  $("cm-price").innerHTML = p?.price != null ? `${fmt(p.price)} <small>tendencia Cardmarket</small>` : `<small>Precio no disponible</small>`;
+  $("cm-price").innerHTML = p?.price != null
+    ? `${fmt(p.price)} <small>tendencia Cardmarket (todos los idiomas)</small>`
+    : `<small>Precio no disponible</small>`;
   if (!prices.has(card.id)) loadPricesFor([card.id], () => { if (modalId === card.id) renderModal(); });
 
+  // Idioma: el de mi copia, o el que elija aquí (para marcarla o comprarla)
+  $("cm-langs").innerHTML = LANGS[g].map((l) =>
+    `<button class="chip-btn${l === lang ? " on" : ""}" data-lang="${l}" title="${langName(l)}">${flag(l)} ${langName(l)}</button>`).join("");
+  $("cm-ct").innerHTML = "";
+  const shownId = card.id;
+  cardTraderOffers(card.id, g, set.id).then((ct) => {
+    if (modalId !== shownId) return;
+    const best = ct?.o?.[lang]?.[0];
+    $("cm-ct").innerHTML = best
+      ? `CardTrader en ${langName(lang).toLowerCase()}: desde <b>${cents(best[0])}</b> <a href="${cardTraderUrl(ct.bp)}" target="_blank" rel="noopener">ver ↗</a>`
+      : ct ? `Sin ofertas en ${langName(lang).toLowerCase()} en CardTrader ahora mismo.` : "";
+    if (ct?.bp) $("cm-links").innerHTML = links(ct.bp);
+  });
+
   const has = State.has(card.id);
-  $("cm-owned").textContent = has ? "✓ La tengo" : "Marcar que la tengo";
-  $("cm-owned").classList.toggle("on", has);
-  const qty = State.cartQty(card.id);
-  $("cm-cart").textContent = qty ? `🛒 En el carrito (${qty}) · añadir otra` : "🛒 Añadir al carrito";
+  const ownLang = State.ownedLang(card.id);
+  $("cm-owned").textContent = !has ? `Marcar que la tengo (${flag(lang)})` : ownLang === lang ? `✓ La tengo en ${langName(lang).toLowerCase()}` : `La tengo en ${langName(ownLang).toLowerCase()} · cambiar a ${flag(lang)}`;
+  $("cm-owned").classList.toggle("on", has && ownLang === lang);
+  const qty = State.cartQty(card.id, lang);
+  $("cm-cart").textContent = qty ? `🛒 En el carrito (${qty} ${flag(lang)}) · añadir otra` : `🛒 Añadir al carrito (${flag(lang)})`;
 
   const lists = State.data.lists;
   $("cm-lists").innerHTML = lists.map((l) =>
     `<button class="chip-btn${State.inList(l.id, card.id) ? " on" : ""}" data-list="${l.id}">${State.inList(l.id, card.id) ? "✓ " : "+ "}${escapeHtml(l.name)}</button>`
   ).join("") + `<button class="chip-btn new" data-list="__new">+ Nueva lista</button>`;
 
-  $("cm-links").innerHTML = `<a href="${cardmarketUrl(card, g)}" target="_blank" rel="noopener">Buscar en Cardmarket ↗</a>`;
+  const links = (bp) => `<a href="${cardmarketUrl(card, g, lang)}" target="_blank" rel="noopener">Comprar en Cardmarket (${flag(lang)}) ↗</a>`
+    + (bp ? ` · <a href="${cardTraderUrl(bp)}" target="_blank" rel="noopener">Ver en CardTrader ↗</a>` : "");
+  $("cm-links").innerHTML = links(null);
 
   const i = modalSeq.indexOf(modalId);
   $("cm-prev").hidden = i <= 0;
@@ -210,24 +258,33 @@ function renderModal() {
 
 function modalStep(d) {
   const i = modalSeq.indexOf(modalId) + d;
-  if (i >= 0 && i < modalSeq.length) { modalId = modalSeq[i]; renderModal(); }
+  if (i >= 0 && i < modalSeq.length) { modalId = modalSeq[i]; modalLang = null; renderModal(); }
 }
 
-function modalContext() { return tiles.get(modalId) || fromMeta(modalId); }
+function modalContext() {
+  const t = tiles.get(modalId) || fromMeta(modalId);
+  return { ...t, card: withCm(t.card), lang: modalLang || State.ownedLang(t.card.id) || State.lang(t.g) };
+}
 
 $("cm-owned").onclick = () => {
-  const { card, g, set } = modalContext();
-  State.setOwned(card, g, set, !State.has(card.id));
+  const { card, g, set, lang } = modalContext();
+  const has = State.has(card.id);
+  if (has && State.ownedLang(card.id) === lang) State.setOwned(card, g, set, false);
+  else State.setOwned(card, g, set, true, lang);
   refreshTile(card.id);
   if (current) updateSetStats();
   renderModal();
 };
 $("cm-cart").onclick = () => {
-  const { card, g, set } = modalContext();
-  State.addToCart(card, g, set);
+  const { card, g, set, lang } = modalContext();
+  State.addToCart(card, g, set, lang);
   refreshTile(card.id);
   renderModal();
-  toast("Añadida al carrito");
+  toast(`Añadida al carrito (${flag(lang)})`);
+};
+$("cm-langs").onclick = (e) => {
+  const b = e.target.closest("[data-lang]");
+  if (b) { modalLang = b.dataset.lang; renderModal(); }
 };
 $("cm-lists").onclick = (e) => {
   const b = e.target.closest("[data-list]");
@@ -289,7 +346,18 @@ function setTile(s, g, have) {
   return b;
 }
 
+// Selector "Idioma de mis cartas" (por juego) en Explorar y en cada set
+function renderLangPrefs() {
+  for (const id of ["lang-pref-sets", "lang-pref-set"]) {
+    $(id).innerHTML = langSelect(gameId, State.lang(gameId), `data-pref="1" aria-label="Idioma de mis cartas"`);
+  }
+}
+document.addEventListener("change", (e) => {
+  if (e.target.matches("select[data-pref]")) { State.setLang(gameId, e.target.value); renderLangPrefs(); toast(`Las cartas que marques serán en ${langName(e.target.value).toLowerCase()}`); }
+});
+
 function renderSets() {
+  renderLangPrefs();
   const q = $("set-search").value.trim().toLowerCase();
   const list = $("all-sets");
   list.innerHTML = "";
@@ -320,6 +388,7 @@ async function openSet(g, id) {
   if (token !== loadToken) return;
 
   current = data;
+  renderLangPrefs();
   if (!game().price) for (const c of data.cards) prices.set(c.id, { price: c.price ?? null, idProduct: c.idProduct ?? null });
   document.title = `${data.name} — Binder`;
   $("set-name").textContent = data.name;
@@ -396,7 +465,7 @@ async function loadSetPrices(token) {
 function missingCards() {
   return current.cards
     .filter((c) => !State.has(c.id))
-    .map((c) => ({ ...c, price: prices.get(c.id)?.price ?? null, idProduct: prices.get(c.id)?.idProduct ?? null }))
+    .map((c) => ({ ...c, price: prices.get(c.id)?.price ?? null, idProduct: c.idProduct || prices.get(c.id)?.idProduct || null }))
     .sort((a, b) => (b.price ?? -1) - (a.price ?? -1));
 }
 
@@ -410,7 +479,7 @@ function openDrawer() {
     <li>
       ${c.img ? `<img loading="lazy" src="${c.img}" alt="">` : ""}
       <div class="mi"><b>${escapeHtml(c.name)}${c.parallel ? " (paralela)" : ""}</b><small>#${escapeHtml(c.code || c.n)} · ${escapeHtml(current.name)}</small></div>
-      <div class="mp">${fmt(c.price)}<a href="${cardmarketUrl(c, gameId)}" target="_blank" rel="noopener">Ver en Cardmarket ↗</a></div>
+      <div class="mp">${fmt(c.price)}<a href="${cardmarketUrl(c, gameId, State.lang(gameId))}" target="_blank" rel="noopener">Cardmarket ${flag(State.lang(gameId))} ↗</a></div>
     </li>`).join("");
   $("drawer").hidden = false;
 }
@@ -523,15 +592,20 @@ function renderList() {
 
 // ---------- Carrito ----------
 async function showCart() {
-  const ids = Object.keys(State.data.cart);
+  const ids = [...new Set(Object.keys(State.data.cart).map((k) => k.split("@")[0]))];
   await ensureMeta(ids);
   renderCart();
   await loadPricesFor(ids, () => {});
   renderCart();
 }
 
+// Una línea por carta e idioma: { key: "id@idioma", lang, card, g, set, qty }
 function cartLines() {
-  return Object.entries(State.data.cart).map(([id, qty]) => ({ ...fromMeta(id), qty }));
+  return Object.entries(State.data.cart).map(([key, qty]) => {
+    const [id, lang] = key.split("@");
+    const x = fromMeta(id);
+    return { ...x, card: withCm(x.card), key, lang, qty };
+  });
 }
 
 function renderCart() {
@@ -544,14 +618,15 @@ function renderCart() {
     $("cart-summary").innerHTML = "";
     return;
   }
-  box.innerHTML = lines.map(({ card, g, set, qty }) => {
+  box.innerHTML = lines.map(({ card, g, set, qty, key, lang }) => {
     tiles.set(card.id, { card, g, set });
     const p = prices.get(card.id);
-    return `<div class="cart-line" data-id="${escapeHtml(card.id)}">
+    return `<div class="cart-line" data-key="${escapeHtml(key)}">
       <button class="cl-img" data-act="zoom" aria-label="Ver en grande">${card.img ? `<img loading="lazy" src="${card.img}" alt="">` : ""}</button>
       <div class="cl-info"><b>${escapeHtml(card.name)}${card.parallel ? " <em>(paralela)</em>" : ""}</b>
         <small>${GAMES[g].name} · ${escapeHtml(set.name || "")} · #${escapeHtml(card.code || card.n)}</small>
-        <small>${p === undefined ? "…" : p?.price != null ? fmt(p.price) + " c/u en Cardmarket" : "sin precio"}</small></div>
+        <small>${p === undefined ? "…" : p?.price != null ? fmt(p.price) + " c/u en Cardmarket" : "sin precio"}</small>
+        ${langSelect(g, lang, `data-cartlang aria-label="Idioma"`)}</div>
       <div class="qty"><button data-q="-1" aria-label="Quitar una">−</button><span>${qty}</span><button data-q="1" aria-label="Añadir una">+</button></div>
     </div>`;
   }).join("");
@@ -570,40 +645,52 @@ function renderCart() {
 $("cart-items").onclick = (e) => {
   const line = e.target.closest(".cart-line");
   if (!line) return;
-  const id = line.dataset.id;
+  const key = line.dataset.key;
+  const [id, lang] = key.split("@");
   const q = e.target.closest("[data-q]");
-  if (q) { State.setCartQty(id, State.cartQty(id) + Number(q.dataset.q)); renderCart(); return; }
-  if (e.target.closest('[data-act="zoom"]')) openCard(id, Object.keys(State.data.cart));
+  if (q) { State.setCartQty(key, (State.data.cart[key] || 0) + Number(q.dataset.q)); renderCart(); return; }
+  if (e.target.closest('[data-act="zoom"]')) openCard(id, [...new Set(Object.keys(State.data.cart).map((k) => k.split("@")[0]))], lang);
+};
+$("cart-items").onchange = (e) => {
+  if (!e.target.matches("[data-cartlang]")) return;
+  State.changeCartLang(e.target.closest(".cart-line").dataset.key, e.target.value);
+  renderCart();
 };
 
 async function optimizeCart() {
   const out = $("opt-result");
   out.innerHTML = `<p class="muted">Buscando la combinación más barata…</p>`;
   const lines = cartLines();
-  const items = [];   // un id por copia
-  for (const l of lines) for (let i = 0; i < l.qty; i++) items.push(l.card.id);
-  const byId = Object.fromEntries(lines.map((l) => [l.card.id, l]));
+  const items = [];   // un "id@idioma" por copia
+  for (const l of lines) for (let i = 0; i < l.qty; i++) items.push(l.key);
+  const byId = Object.fromEntries(lines.map((l) => [l.key, l]));
+  const cardOf = (key) => key.split("@")[0];
 
-  // Cartas con datos de CardTrader (por ahora One Piece) → optimizador; el resto → referencia Cardmarket
-  const ctItems = items.filter((id) => GAMES[byId[id].g].hasCardTrader);
+  // Cartas con ofertas de CardTrader en su idioma → optimizador; el resto → referencia Cardmarket
   let ct = null;
-  if (ctItems.length) {
-    try { ct = await cardTraderData("onepiece", ctItems.map((id) => byId[id].set.id)); }
-    catch { ct = null; }
-  }
+  try { ct = await cardTraderData(lines.map((l) => ({ g: l.g, s: l.set.id }))); }
+  catch { ct = null; }
+  const ctItems = ct ? items.filter((k) => Optimizer.offersFor(k, ct).length) : [];
   const direct = ct ? Optimizer.optimizeDirect(ctItems, ct) : null;
   const zero = ct ? Optimizer.optimizeZero(ctItems, ct) : null;
+
+  const mixed = ct ? Optimizer.optimizeMixed(ctItems, ct) : null;
 
   const options = [];
   if (direct?.items.length) options.push({ key: "direct", label: "CardTrader · directo a vendedores", sum: direct.sum, cost: direct.cost, ship: direct.ship, n: direct.items.length, envios: direct.per.size, left: direct.missing });
   if (zero?.picks.length) options.push({ key: "zero", label: "CardTrader Zero · un solo envío", sum: zero.sum, cost: zero.cost, ship: zero.ship, n: zero.picks.length, envios: 1, left: zero.missing });
-  options.sort((a, b) => a.sum - b.sum);
+  // El combinado solo cubre las cartas del plan directo: se compara si cubre las mismas que el directo
+  if (mixed && mixed.sum < Math.min(direct.sum, zero?.missing.length ? Infinity : zero.sum)) {
+    options.push({ key: "mixed", label: "Combinado · vendedores + Zero", sum: mixed.sum, cost: mixed.cost, ship: mixed.ship, n: direct.items.length, envios: mixed.envios, left: mixed.missing });
+  }
+  // Lo que una opción no cubre se estima con Cardmarket; se comparan por el total de todo el carrito
+  const notCt = items.filter((k) => !ctItems.includes(k));
+  const cmOf = (keys) => keys.reduce((s, k) => s + (prices.get(cardOf(k))?.price || 0), 0);
+  for (const o of options) o.total = o.sum / 100 + cmOf([...o.left, ...notCt]);
+  options.sort((a, b) => a.total - b.total);
   const best = options[0];
-
-  // Lo que no se puede comprar en CardTrader se estima con Cardmarket
-  const leftover = best ? [...best.left, ...items.filter((id) => !GAMES[byId[id].g].hasCardTrader)] : items;
-  const cmLeft = leftover.reduce((s, id) => s + (prices.get(id)?.price || 0), 0);
-  const total = (best ? best.sum / 100 : 0) + cmLeft;
+  const leftover = best ? [...best.left, ...notCt] : items;
+  const total = best ? best.total : cmOf(items);
 
   const row = (o, i) => `
     <button class="opt-row${i === 0 ? " best" : ""}" data-show="${o.key}">
@@ -611,17 +698,17 @@ async function optimizeCart() {
       <div class="opt-sum">${cents(o.sum)}<small>${cents(o.cost)} + ${cents(o.ship)} envío</small></div>
     </button>`;
 
-  const itemRow = (id, price, bp) => {
-    const { card, set } = byId[id];
-    return `<div class="opt-item"><span>${escapeHtml(card.name)}${card.parallel ? " <em>(paralela)</em>" : ""} <small>${escapeHtml(set.name || "")} #${escapeHtml(card.code || card.n)}</small></span>
-      <span>${cents(price)} <a href="${cardTraderUrl(bp)}" target="_blank" rel="noopener">ver ↗</a></span></div>`;
+  const itemRow = (key, price) => {
+    const { card, set, lang } = byId[key];
+    return `<div class="opt-item"><span>${flag(lang)} ${escapeHtml(card.name)}${card.parallel ? " <em>(paralela)</em>" : ""} <small>${escapeHtml(set.name || "")} #${escapeHtml(card.code || card.n)}</small></span>
+      <span>${cents(price)} <a href="${cardTraderUrl(ct.cards[cardOf(key)].bp)}" target="_blank" rel="noopener">ver ↗</a></span></div>`;
   };
-  const directDetail = () => {
+  const directDetail = (d = direct) => {
     const groups = new Map();
-    direct.plan.forEach((k, i) => {
-      const [price, s] = direct.offersOf[i][k];
+    d.plan.forEach((k, i) => {
+      const [price, s] = d.offersOf[i][k];
       if (!groups.has(s)) groups.set(s, []);
-      groups.get(s).push([direct.items[i], price]);
+      groups.get(s).push([d.items[i], price]);
     });
     let n = 0;
     return [...groups.entries()].sort((a, b) => b[1].length - a[1].length).map(([s, list]) => {
@@ -631,18 +718,19 @@ async function optimizeCart() {
       return `<div class="opt-group">
         <div class="opt-group-head"><b>Vendedor ${++n}</b> · ${escapeHtml(countryName(seller.c))}${seller.pro ? " · profesional" : ""}
           <span>${list.length} carta${list.length > 1 ? "s" : ""} · envío ${ship ? cents(ship) : "gratis"}</span></div>
-        ${list.map(([id, price]) => itemRow(id, price, ct.cards[id].bp)).join("")}
+        ${list.map(([key, price]) => itemRow(key, price)).join("")}
       </div>`;
     }).join("");
   };
-  const zeroDetail = () => `<div class="opt-group">
+  const zeroDetail = (z = zero) => `<div class="opt-group">
       <div class="opt-group-head"><b>CardTrader Zero</b> · todo llega en un paquete <span>envío ${cents(ct.zeroShipping)}</span></div>
-      ${zero.picks.map(([id, [price]]) => itemRow(id, price, ct.cards[id].bp)).join("")}
+      ${z.picks.map(([key, [price]]) => itemRow(key, price)).join("")}
     </div>`;
+  const detailOf = (key) => key === "direct" ? directDetail() : key === "zero" ? zeroDetail() : zeroDetail(mixed.zero) + directDetail(mixed.direct);
   const leftoverDetail = () => leftover.length ? `<div class="opt-group">
       <div class="opt-group-head"><b>Cardmarket</b> · estimado con precio de tendencia <span>envíos no incluidos</span></div>
-      ${leftover.map((id) => { const { card, g, set } = byId[id]; return `<div class="opt-item"><span>${escapeHtml(card.name)} <small>${escapeHtml(set.name || "")}</small></span>
-        <span>${fmt(prices.get(id)?.price)} <a href="${cardmarketUrl(card, g)}" target="_blank" rel="noopener">ver ↗</a></span></div>`; }).join("")}
+      ${leftover.map((key) => { const { card, g, set, lang } = byId[key]; return `<div class="opt-item"><span>${flag(lang)} ${escapeHtml(card.name)} <small>${escapeHtml(set.name || "")}</small></span>
+        <span>${fmt(prices.get(card.id)?.price)} <a href="${cardmarketUrl(card, g, lang)}" target="_blank" rel="noopener">ver ↗</a></span></div>`; }).join("")}
     </div>` : "";
 
   out.innerHTML = `
@@ -653,13 +741,13 @@ async function optimizeCart() {
     </div>
     ${options.length ? `<div class="opt-rows">${options.map(row).join("")}</div>` : ""}
     <h3 class="opt-h">Dónde comprar cada carta</h3>
-    <div id="opt-detail">${best ? (best.key === "direct" ? directDetail() : zeroDetail()) : ""}${leftoverDetail()}</div>
-    <p class="muted tiny">${ct ? `Ofertas de CardTrader del ${new Date(ct.updated).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}: cartas en inglés, Near Mint o mejor, envío a España. ` : ""}Pokémon todavía no tiene ofertas de CardTrader: se estima con Cardmarket. Los precios pueden haber cambiado y no incluyen comisiones de pago. Para comprar, abre cada carta y elige la oferta del país indicado.</p>`;
+    <div id="opt-detail">${best ? detailOf(best.key) : ""}${leftoverDetail()}</div>
+    <p class="muted tiny">${ct ? `Ofertas de CardTrader del ${new Date(ct.updated).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}: en el idioma de cada línea, Near Mint o mejor, versión normal (sin reverse holo), envío a España. ` : ""}En Pokémon, por ahora solo hay ofertas de CardTrader para Escarlata y Púrpura y Megaevolución; el resto se estima con Cardmarket. Los precios pueden haber cambiado y no incluyen comisiones de pago. Para comprar, abre cada carta y elige la oferta del país indicado.</p>`;
 
   out.querySelectorAll("[data-show]").forEach((b) => {
     b.onclick = () => {
       out.querySelectorAll("[data-show]").forEach((x) => x.classList.toggle("best", x === b));
-      $("opt-detail").innerHTML = (b.dataset.show === "direct" ? directDetail() : zeroDetail()) + leftoverDetail();
+      $("opt-detail").innerHTML = detailOf(b.dataset.show) + leftoverDetail();
     };
   });
 }
@@ -680,7 +768,7 @@ function renderAccount() {
     $("btn-signout").onclick = async () => { await Auth.signOut(); $("account-modal").hidden = true; toast("Sesión cerrada"); };
   } else {
     body.innerHTML = `<h2 id="acc-title">Entrar en Binder</h2>
-      <p>Te enviamos un enlace a tu email para entrar, sin contraseñas. Lo que tengas guardado en este navegador se une a tu cuenta.</p>
+      <p>Te enviamos un enlace a tu email para entrar, sin contraseñas. Cada cuenta tiene su propia colección, listas y carrito.</p>
       <form id="login-form" class="login-form">
         <input type="email" id="login-email" placeholder="tu@email.com" autocomplete="email" required>
         <button class="btn" type="submit">Enviarme el enlace</button>
@@ -766,7 +854,7 @@ $("btn-list").onclick = openDrawer;
 $("btn-miss-cart").onclick = () => {
   const miss = current.cards.filter((c) => !State.has(c.id) && !State.cartQty(c.id));
   if (!miss.length) { toast("Ya tienes (o están en el carrito) todas las cartas"); return; }
-  for (const c of miss) State.addToCart(c, gameId, current);
+  for (const c of miss) State.addToCart(withCm(c), gameId, current);
   current.cards.forEach((c) => refreshTile(c.id));
   toast(`${miss.length} cartas añadidas al carrito`);
 };

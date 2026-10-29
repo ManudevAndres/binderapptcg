@@ -38,18 +38,34 @@ const Auth = (() => {
     if (error) console.warn("No se pudo guardar en la nube", error.message);
   }
 
+  // Al entrar se cambia al perfil de la cuenta. Lo guardado como invitado solo se pasa a la cuenta
+  // si el usuario lo acepta (y entonces se borra del perfil de invitado).
+  let pending = null;
   async function onSignedIn(u) {
-    user = u;
-    notify();
+    if (pending === u.id || user?.id === u.id) return;
+    pending = u.id;
     syncing = true;
     try {
-      const remote = await pull();
-      if (remote) State.merge(remote);
+      let remote = null;
+      try { remote = await pull(); } catch (e) { console.warn("No se pudo leer la nube", e.message); }
+      const guest = State.guestData();
+      user = u;
+      State.useAccount(u.id, remote || State.cachedAccount(u.id));
+      if (!State.isEmpty(guest)) {
+        const extra = Object.keys(guest.owned).filter((id) => !State.data.owned[id]).length
+          + guest.lists.filter((l) => !State.list(l.id)).length
+          + Object.keys(guest.cart).filter((k) => !State.data.cart[k]).length;
+        if (!extra) State.clearGuest();
+        else if (confirm(`En este navegador tenías cartas, listas o carrito guardados sin cuenta.\n\n¿Quieres pasarlos a tu cuenta (${u.email})?\n\nSi dices que no, se quedan aparte y los verás al cerrar sesión.`)) {
+          State.mergeFrom(guest);
+          State.clearGuest();
+        }
+      }
       await push();
-    } catch (e) {
-      console.warn("Sincronización fallida", e.message);
     } finally {
       syncing = false;
+      pending = null;
+      notify();
     }
   }
 
@@ -68,8 +84,8 @@ const Auth = (() => {
       await loadLib();
       client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
       client.auth.onAuthStateChange((event, session) => {
-        if (session?.user && session.user.id !== user?.id) onSignedIn(session.user);
-        if (event === "SIGNED_OUT") { user = null; notify(); }
+        if (session?.user) onSignedIn(session.user);
+        if (event === "SIGNED_OUT" && user) { user = null; State.useGuest(); notify(); }
       });
       const { data } = await client.auth.getSession();
       if (data.session?.user) onSignedIn(data.session.user);
@@ -81,6 +97,7 @@ const Auth = (() => {
     async signOut() {
       await push();
       await client.auth.signOut();
+      if (user) { user = null; State.useGuest(); notify(); }
     },
   };
 })();

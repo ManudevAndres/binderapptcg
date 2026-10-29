@@ -132,6 +132,15 @@ input[type=search], .select, .new-list input, .login-form input {
   background: rgba(13,15,26,.75); border: 1.5px solid rgba(255,255,255,.35); color: transparent;
 }
 .c.have .check { background: var(--ok); border-color: var(--ok); color: #06291a; }
+.c .flag { position: absolute; left: 6px; bottom: 6px; font-size: 16px; line-height: 1; pointer-events: none; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+.lang-pref { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
+.lang-select { padding: 7px 10px; font-size: 14px; }
+#lang-pref-set .lang-select { padding: 3px 6px; font-size: 13px; }
+.cl-info .lang-select { margin-top: 4px; padding: 4px 8px; font-size: 13px; }
+.cm-langs { margin-bottom: 8px; }
+.cm-ct { min-height: 18px; margin: 0 0 14px; color: var(--muted); }
+.cm-ct b { color: var(--ok); }
+.cm-ct a { color: var(--muted); }
 .c .tag {
   position: absolute; top: 8px; left: 8px; font-size: 11px; font-weight: 600; pointer-events: none;
   background: rgba(108,123,255,.9); color: #fff; padding: 2px 7px; border-radius: 6px;

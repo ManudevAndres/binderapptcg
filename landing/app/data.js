@@ -119,6 +119,7 @@ const GAMES = {
         return { price: null, idProduct: null };
       }
     },
+    hasCardTrader: true,   // de momento solo Escarlata y Púrpura y Megaevolución
   },
 
   onepiece: {
@@ -144,20 +145,32 @@ const GAMES = {
   },
 };
 
-// Ofertas de CardTrader de varios sets juntas (vendedores comunes en sellers.json).
-async function cardTraderData(game, setIds) {
-  if (!GAMES[game]?.hasCardTrader) return null;
-  const common = await dailyData(`cardtrader/${game}/sellers.json`);
+// Ofertas de CardTrader de varios sets y juegos juntas (vendedores comunes en sellers.json).
+// sets = [{ g, s }]
+async function cardTraderData(sets) {
+  const common = await dailyData("cardtrader/sellers.json");
   const cards = {};
-  for (const s of new Set(setIds)) {
-    try { Object.assign(cards, (await dailyData(`cardtrader/${game}/${encodeURIComponent(s)}.json`)).cards); }
+  const seen = new Set();
+  for (const { g, s } of sets) {
+    if (!GAMES[g]?.hasCardTrader || seen.has(g + "|" + s)) continue;
+    seen.add(g + "|" + s);
+    try { Object.assign(cards, (await dailyData(`cardtrader/${g}/${encodeURIComponent(s)}.json`)).cards); }
     catch { /* set sin datos todavía */ }
   }
   return { ...common, cards };
 }
 
-function cardmarketUrl(card, game) {
-  const q = card.code ? `${card.name} ${card.code}` : card.name;
-  return `https://www.cardmarket.com/es/${GAMES[game].cardmarket}/Products/Search?searchString=${encodeURIComponent(q)}`;
+// Idiomas en los filtros de Cardmarket
+const CM_LANG = { en: 1, fr: 2, de: 3, es: 4, it: 5, "zh-CN": 6, jp: 7, pt: 8, ru: 9, kr: 10 };
+
+// Enlace a la carta concreta en Cardmarket (por su idProduct), filtrando idioma y Near Mint o mejor.
+// Sin idProduct, búsqueda por nombre y número.
+function cardmarketUrl(card, game, lang = null) {
+  const base = `https://www.cardmarket.com/es/${GAMES[game].cardmarket}`;
+  const filters = new URLSearchParams({ minCondition: "2" });
+  if (lang && CM_LANG[lang]) filters.set("language", CM_LANG[lang]);
+  if (card.idProduct) return `${base}/Products?idProduct=${card.idProduct}&${filters}`;
+  const q = card.code ? `${card.name} ${card.code}` : `${card.name} ${card.n || ""}`.trim();
+  return `${base}/Products/Search?searchString=${encodeURIComponent(q)}`;
 }
 const cardTraderUrl = (bp) => `https://www.cardtrader.com/es/cards/${bp}`;

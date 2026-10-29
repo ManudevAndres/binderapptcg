@@ -1,11 +1,17 @@
 // Optimizador de compra: elige qué vendedores de CardTrader combinar para pagar lo mínimo
 // sumando precio de las cartas y gastos de envío. Todo en céntimos.
 //
-// data  = { sellers: [{ c, z, m: [{ t: [[desde_g, hasta_g, céntimos]], fq, fp, max }] }], cards: { id: { bp, o: [[céntimos, vendedor, cantidad]] } }, zeroShipping }
-// items = lista de ids de carta; un id repetido = varias copias de esa carta
+// data  = { sellers: [{ c, z, m: [{ t: [[desde_g, hasta_g, céntimos]], fq, fp, max }] }],
+//          cards: { id: { bp, o: { idioma: [[céntimos, vendedor, cantidad]] } } }, zeroShipping }
+// items = lista de "id@idioma"; uno repetido = varias copias de esa carta
 
 const GRAMS_PER_CARD = 2;     // CardTrader calcula ~2 g por carta suelta
 const ENVELOPE_GRAMS = 10;
+
+function offersFor(key, data) {
+  const [id, lang] = key.split("@");
+  return data.cards[id]?.o?.[lang] || [];
+}
 
 // Coste de envío de un vendedor para n cartas con ese subtotal (Infinity si no envía).
 function shippingCost(seller, n, subtotal) {
@@ -47,7 +53,7 @@ function optimizeDirect(itemIds, data) {
   const sellers = data.sellers;
   const items = [], offersOf = [], missing = [];
   for (const id of itemIds) {
-    const o = (data.cards[id]?.o || []).filter(([, s]) => (sellers[s].m || []).length);
+    const o = offersFor(id, data).filter(([, s]) => (sellers[s].m || []).length);
     if (o.length) { items.push(id); offersOf.push(o); } else missing.push(id);
   }
   if (!items.length) return { items, plan: [], offersOf, missing, items_: 0, ship: 0, sum: 0, cost: 0, per: new Map() };
@@ -107,7 +113,7 @@ function optimizeZero(itemIds, data) {
   const picks = [], missing = [];
   const used = new Map();
   for (const id of itemIds) {
-    const offers = data.cards[id]?.o || [];
+    const offers = offersFor(id, data);
     const k = offers.findIndex(([, s, q], kk) => data.sellers[s].z && (used.get(id + "|" + kk) || 0) < q);
     if (k >= 0) {
       used.set(id + "|" + k, (used.get(id + "|" + k) || 0) + 1);
@@ -119,4 +125,38 @@ function optimizeZero(itemIds, data) {
   return { cost, ship, sum: cost + ship, picks, missing };
 }
 
-window.Optimizer = { shippingCost, optimizeDirect, optimizeZero };
+// Combinado: parte del carrito directo a vendedores y parte por CardTrader Zero (un solo envío del hub).
+// Parte del plan directo y pasa a Zero los vendedores cuyo lote sale más caro que comprarlo por Zero.
+function optimizeMixed(itemIds, data) {
+  const direct = optimizeDirect(itemIds, data);
+  if (!direct.items.length) return null;
+  const groups = new Map();
+  direct.plan.forEach((k, i) => {
+    const [price, s] = direct.offersOf[i][k];
+    if (!groups.has(s)) groups.set(s, { items: [], cost: 0 });
+    const g = groups.get(s);
+    g.items.push(direct.items[i]);
+    g.cost += price;
+  });
+  const toZero = [];
+  for (const [s, g] of groups) {
+    const ship = shippingCost(data.sellers[s], g.items.length, g.cost);
+    const z = optimizeZero(g.items, data);
+    if (!z.missing.length && z.cost < g.cost + ship) toZero.push({ items: g.items, saving: g.cost + ship - z.cost });
+  }
+  if (!toZero.length) return null;
+  const zeroItems = toZero.flatMap((x) => x.items);
+  const pending = new Map();
+  for (const id of zeroItems) pending.set(id, (pending.get(id) || 0) + 1);
+  const rest = direct.items.filter((id) => {
+    const n = pending.get(id) || 0;
+    if (n) { pending.set(id, n - 1); return false; }
+    return true;
+  });
+  const zeroPart = optimizeZero(zeroItems, data);
+  const directPart = optimizeDirect(rest, data);
+  const sum = zeroPart.sum + directPart.sum;
+  return { direct: directPart, zero: zeroPart, cost: zeroPart.cost + directPart.cost, ship: zeroPart.ship + directPart.ship, sum, missing: direct.missing, envios: directPart.per.size + 1 };
+}
+
+window.Optimizer = { shippingCost, optimizeDirect, optimizeZero, optimizeMixed, offersFor };

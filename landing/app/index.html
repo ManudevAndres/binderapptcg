@@ -40,6 +40,7 @@
     </div>
     <div class="toolbar">
       <input type="search" id="set-search" placeholder="Buscar set (ej.: Oscuridad, 151, Romance…)" autocomplete="off">
+      <label class="lang-pref">Idioma de mis cartas <span id="lang-pref-sets"></span></label>
     </div>
     <div class="set-list" id="all-sets"><p class="muted">Cargando sets…</p></div>
   </section>
@@ -78,7 +79,7 @@
         <button class="btn small" id="btn-miss-cart">🛒 Faltantes al carrito</button>
       </div>
     </div>
-    <p class="muted tiny hint">Toca una carta para marcar que la <b>tienes</b>. Usa 🔍 para verla en grande y 🛒 para añadirla al carrito.</p>
+    <p class="muted tiny hint">Toca una carta para marcar que la <b>tienes</b> en el idioma elegido: <span id="lang-pref-set"></span> Usa 🔍 para verla en grande o elegir otro idioma, y 🛒 para añadirla al carrito.</p>
 
     <div class="cards" id="cards"></div>
   </section>
@@ -160,6 +161,9 @@
       <p class="muted tiny" id="cm-set"></p>
       <h2 id="cm-name"></h2>
       <p class="cm-price" id="cm-price"></p>
+      <p class="tiny muted">Idioma</p>
+      <div class="chips cm-langs" id="cm-langs"></div>
+      <p class="tiny cm-ct" id="cm-ct"></p>
       <div class="cm-actions">
         <button class="btn-ghost" id="cm-owned"></button>
         <button class="btn" id="cm-cart">🛒 Añadir al carrito</button>

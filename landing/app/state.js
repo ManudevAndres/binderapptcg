@@ -1,29 +1,60 @@
-// Binder — datos del usuario: colección, listas personalizadas y carrito.
-// Se guardan en el navegador y, si hay sesión iniciada, también en la nube (ver auth.js).
+// Binder — datos del usuario: colección, listas personalizadas, carrito y preferencias.
+// Cada perfil tiene sus propios datos: "invitado" (sin sesión, solo en este navegador) y uno por cuenta
+// (copia local + nube, ver auth.js). Al entrar o salir se cambia de perfil; nunca se mezclan solos.
 //
-// owned: { cardId: { g, s } }              cartas que tengo (juego y set)
-// meta:  { cardId: { g, s, sn, name, n, code, img, big, par } }   datos para mostrarlas fuera de su set
+// owned: { cardId: { g, s, l } }           cartas que tengo (juego, set e idioma)
+// meta:  { cardId: { g, s, sn, name, n, code, img, big, par, cm } }   datos para mostrarlas fuera de su set
 // lists: [{ id, name, cards: [cardId], created }]
-// cart:  { cardId: cantidad }
+// cart:  { "cardId@idioma": cantidad }
+// prefs: { lang: { pokemon: "es", onepiece: "en" } }   idioma por defecto de cada juego
+
+const LANGS = {
+  pokemon: ["es", "en", "fr", "de", "it", "pt", "jp"],
+  onepiece: ["en", "jp", "fr"],
+};
+const LANG_NAMES = { es: "Español", en: "Inglés", fr: "Francés", de: "Alemán", it: "Italiano", pt: "Portugués", jp: "Japonés", kr: "Coreano", "zh-CN": "Chino" };
+const LANG_FLAGS = { es: "🇪🇸", en: "🇬🇧", fr: "🇫🇷", de: "🇩🇪", it: "🇮🇹", pt: "🇵🇹", jp: "🇯🇵", kr: "🇰🇷", "zh-CN": "🇨🇳" };
+const DEFAULT_LANG = { pokemon: "es", onepiece: "en" };
 
 const State = (() => {
-  const KEY = "state";
-  let data = load();
+  let profile = "guest";
+  let data = load(profile);
   const listeners = new Set();
   let saveTimer = null;
 
   function empty() {
-    return { v: 2, owned: {}, meta: {}, lists: [], cart: {}, updated: 0 };
+    return { v: 3, owned: {}, meta: {}, lists: [], cart: {}, prefs: { lang: { ...DEFAULT_LANG } }, updated: 0 };
+  }
+  function keyOf(p) { return "state:" + p; }
+
+  // Normaliza datos de versiones anteriores
+  function upgrade(d) {
+    if (!d) return empty();
+    const out = { ...empty(), ...d, v: 3 };
+    out.prefs = { lang: { ...DEFAULT_LANG, ...(d.prefs?.lang || {}) } };
+    for (const [id, o] of Object.entries(out.owned)) if (!o.l) o.l = out.prefs.lang[o.g] || "en";
+    const cart = {};
+    for (const [k, q] of Object.entries(out.cart || {})) {
+      if (k.includes("@")) cart[k] = q;
+      else { const g = out.meta[k]?.g || "pokemon"; cart[k + "@" + (out.prefs.lang[g] || "en")] = q; }
+    }
+    out.cart = cart;
+    return out;
   }
 
-  function load() {
-    const saved = store.get(KEY);
-    if (saved?.v === 2) return { ...empty(), ...saved };
-    return migrate();
+  function load(p) {
+    const saved = store.get(keyOf(p));
+    if (saved) return upgrade(saved);
+    if (p === "guest") {
+      const old = store.get("state");          // v2: un único estado sin perfiles
+      if (old) { store.remove("state"); const d = upgrade(old); store.set(keyOf(p), d); return d; }
+      return upgrade(migrateV1());
+    }
+    return empty();
   }
 
-  // Versión anterior: "col:<set>" con los ids que tengo y "mysets" con el juego de cada set.
-  function migrate() {
+  // v1: "col:<set>" con los ids que tengo y "mysets" con el juego de cada set
+  function migrateV1() {
     const d = empty();
     const mysets = store.get("mysets", {});
     for (const key of store.keys("col:")) {
@@ -33,24 +64,48 @@ const State = (() => {
         d.owned[id] = { g, s };
         d.meta[id] = { g, s, sn: mysets[s]?.name || s };
       }
+      store.remove(key);
     }
-    d.updated = Date.now();
-    store.set(KEY, d);
+    store.remove("mysets");
     return d;
   }
 
+  function persist() { store.set(keyOf(profile), data); }
   function changed() {
     data.updated = Date.now();
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => store.set(KEY, data), 150);
+    saveTimer = setTimeout(persist, 150);
+    listeners.forEach((fn) => fn(data));
+  }
+  function swap(p, next) {
+    clearTimeout(saveTimer);
+    persist();
+    profile = p;
+    data = upgrade(next);
+    persist();
     listeners.forEach((fn) => fn(data));
   }
 
   const listId = () => "l" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const cartKey = (id, l) => id + "@" + l;
 
   return {
     get data() { return data; },
+    get profile() { return profile; },
     onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+
+    // Perfiles
+    isEmpty: (d = data) => !Object.keys(d.owned).length && !d.lists.length && !Object.keys(d.cart).length,
+    guestData: () => (profile === "guest" ? data : load("guest")),
+    cachedAccount: (uid) => store.get(keyOf("u:" + uid)),
+    useAccount(uid, accountData) { swap("u:" + uid, accountData || store.get(keyOf("u:" + uid))); },
+    useGuest() { swap("guest", load("guest")); },
+    clearGuest() { store.remove(keyOf("guest")); },
+    snapshot: () => JSON.parse(JSON.stringify(data)),
+
+    // Idioma
+    lang: (g) => data.prefs.lang[g] || DEFAULT_LANG[g] || "en",
+    setLang(g, l) { data.prefs.lang[g] = l; changed(); },
 
     // Guarda los datos de una carta para poder mostrarla en colección, listas y carrito.
     remember(card, g, set) {
@@ -58,33 +113,48 @@ const State = (() => {
       data.meta[card.id] = {
         ...m, g, s: set.id, sn: set.name, name: card.name, n: card.n, code: card.code || null,
         img: card.img || null, big: card.big || card.img || null, par: !!card.parallel,
+        cm: card.idProduct || m.cm || null,
       };
     },
+    setCardmarketId(id, cm) { if (cm && data.meta[id] && data.meta[id].cm !== cm) { data.meta[id].cm = cm; changed(); } },
 
+    // Colección
     has: (id) => !!data.owned[id],
-    setOwned(card, g, set, value) {
+    ownedLang: (id) => data.owned[id]?.l || null,
+    setOwned(card, g, set, value, l = null) {
       this.remember(card, g, set);
-      if (value) data.owned[card.id] = { g, s: set.id }; else delete data.owned[card.id];
+      if (value) data.owned[card.id] = { g, s: set.id, l: l || data.owned[card.id]?.l || this.lang(g) };
+      else delete data.owned[card.id];
       changed();
     },
     setManyOwned(cards, g, set, value) {
       for (const c of cards) {
         this.remember(c, g, set);
-        if (value) data.owned[c.id] = { g, s: set.id }; else delete data.owned[c.id];
+        if (value) data.owned[c.id] = { g, s: set.id, l: data.owned[c.id]?.l || this.lang(g) };
+        else delete data.owned[c.id];
       }
       changed();
     },
 
-    // Carrito
-    cartQty: (id) => data.cart[id] || 0,
+    // Carrito (una línea por carta e idioma)
+    cartQty: (id, l = null) => Object.entries(data.cart).reduce((n, [k, q]) => n + (k.split("@")[0] === id && (!l || k.endsWith("@" + l)) ? q : 0), 0),
     cartCount: () => Object.values(data.cart).reduce((a, b) => a + b, 0),
-    addToCart(card, g, set, qty = 1) {
+    addToCart(card, g, set, l, qty = 1) {
       if (set) this.remember(card, g, set);
-      data.cart[card.id] = Math.min(99, (data.cart[card.id] || 0) + qty);
+      const k = cartKey(card.id, l || this.lang(g));
+      data.cart[k] = Math.min(99, (data.cart[k] || 0) + qty);
       changed();
     },
-    setCartQty(id, qty) {
-      if (qty > 0) data.cart[id] = Math.min(99, qty); else delete data.cart[id];
+    setCartQty(key, qty) {
+      if (qty > 0) data.cart[key] = Math.min(99, qty); else delete data.cart[key];
+      changed();
+    },
+    changeCartLang(key, l) {
+      const [id] = key.split("@");
+      const q = data.cart[key];
+      delete data.cart[key];
+      const k = cartKey(id, l);
+      data.cart[k] = Math.min(99, (data.cart[k] || 0) + q);
       changed();
     },
     clearCart() { data.cart = {}; changed(); },
@@ -109,19 +179,16 @@ const State = (() => {
       changed();
     },
 
-    // Sustituye todo (al traer los datos de la nube) o mezcla con lo local.
-    replace(next) { data = { ...empty(), ...next, v: 2 }; store.set(KEY, data); listeners.forEach((fn) => fn(data)); },
-    merge(remote) {
-      const merged = empty();
-      merged.owned = { ...remote.owned, ...data.owned };
-      merged.meta = { ...remote.meta, ...data.meta };
-      const lists = new Map((remote.lists || []).map((l) => [l.id, l]));
-      for (const l of data.lists) lists.set(l.id, l);
-      merged.lists = [...lists.values()];
-      merged.cart = { ...remote.cart, ...data.cart };
-      data = merged;
+    // Une los datos de otro perfil (solo cuando el usuario lo pide)
+    mergeFrom(other) {
+      const o = upgrade(other);
+      data.owned = { ...o.owned, ...data.owned };
+      data.meta = { ...o.meta, ...data.meta };
+      const lists = new Map(data.lists.map((l) => [l.id, l]));
+      for (const l of o.lists) if (!lists.has(l.id)) lists.set(l.id, l);
+      data.lists = [...lists.values()];
+      for (const [k, q] of Object.entries(o.cart)) data.cart[k] = Math.min(99, (data.cart[k] || 0) + q);
       changed();
     },
-    snapshot: () => JSON.parse(JSON.stringify(data)),
   };
 })();
