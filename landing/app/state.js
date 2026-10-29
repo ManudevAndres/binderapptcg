@@ -9,7 +9,7 @@
 // prefs: { lang: { pokemon: "es", onepiece: "en" } }   idioma por defecto de cada juego
 
 const LANGS = {
-  pokemon: ["es", "en", "fr", "de", "it", "pt", "jp"],
+  pokemon: ["es", "en", "fr", "de", "it", "pt"],   // las cartas japonesas son de sets distintos (catálogo aparte)
   onepiece: ["en", "jp", "fr"],
 };
 const LANG_NAMES = { es: "Español", en: "Inglés", fr: "Francés", de: "Alemán", it: "Italiano", pt: "Portugués", jp: "Japonés", kr: "Coreano", "zh-CN": "Chino" };

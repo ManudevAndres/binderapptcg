@@ -1,0 +1,15 @@
+<!-- Plantilla del email de acceso de Binder.
+     Supabase → Authentication → Emails (Email Templates) → "Magic Link":
+       Subject: Tu enlace para entrar en Binder
+       Body: pega todo lo que hay debajo de este comentario.
+     Repite en "Confirm signup" (es el email que reciben los usuarios nuevos) con el asunto
+       "Confirma tu email para entrar en Binder". -->
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#1c2036">
+  <h2 style="margin:0 0 12px">Entra en Binder</h2>
+  <p>Pulsa el botón para entrar. No necesitas contraseña.</p>
+  <p style="margin:24px 0">
+    <a href="{{ .ConfirmationURL }}" style="background:#ffcb3d;color:#1a1400;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Entrar en Binder</a>
+  </p>
+  <p style="font-size:13px;color:#666">El enlace caduca en una hora y solo se puede usar una vez. Si no has pedido entrar, ignora este email.</p>
+  <p style="font-size:13px;color:#666">Binder · tu colección de cartas, sin líos</p>
+</div>

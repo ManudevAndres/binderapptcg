@@ -262,6 +262,11 @@ input[type=search], .select, .new-list input, .login-form input {
 
 /* Cuenta */
 .login-form { display: grid; gap: 10px; margin-top: 12px; }
+.ct-box { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.ct-box h3 { font-size: 17px; }
+.ct-box a { color: var(--accent-2); }
+.send-ct { width: 100%; margin-top: 12px; }
+#send-ct-msg a { color: var(--accent-2); }
 
 .toast {
   position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); z-index: 80;

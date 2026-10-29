@@ -225,6 +225,7 @@ function renderModal() {
   $("cm-langs").innerHTML = LANGS[g].map((l) =>
     `<button class="chip-btn${l === lang ? " on" : ""}" data-lang="${l}" title="${langName(l)}">${flag(l)} ${langName(l)}</button>`).join("");
   $("cm-ct").innerHTML = "";
+  $("cm-ct-add").hidden = true;
   const shownId = card.id;
   cardTraderOffers(card.id, g, set.id).then((ct) => {
     if (modalId !== shownId) return;
@@ -233,6 +234,10 @@ function renderModal() {
       ? `CardTrader en ${langName(lang).toLowerCase()}: desde <b>${cents(best[0])}</b> <a href="${cardTraderUrl(ct.bp)}" target="_blank" rel="noopener">ver ↗</a>`
       : ct ? `Sin ofertas en ${langName(lang).toLowerCase()} en CardTrader ahora mismo.` : "";
     if (ct?.bp) $("cm-links").innerHTML = links(ct.bp);
+    const addBtn = $("cm-ct-add");
+    addBtn.hidden = !ct?.bp;
+    addBtn.dataset.bp = ct?.bp || "";
+    addBtn.textContent = `⚡ Añadir a mi carrito de CardTrader (${flag(lang)})`;
   });
 
   const has = State.has(card.id);
@@ -281,6 +286,34 @@ $("cm-cart").onclick = () => {
   refreshTile(card.id);
   renderModal();
   toast(`Añadida al carrito (${flag(lang)})`);
+};
+// Añadir al carrito real de CardTrader la mejor oferta calidad/precio (con el token del usuario)
+function needCardTrader() {
+  if (CardTraderAccount.connected()) return false;
+  renderAccount();
+  $("account-modal").hidden = false;
+  toast("Conecta tu cuenta de CardTrader para añadir cartas a su carrito");
+  return true;
+}
+function describeOffer(r) {
+  return `${cents(r.price)} · vendedor de ${countryName(r.country)}${r.pro ? " (profesional)" : ""}${r.zero ? " · vía Zero" : ""}`;
+}
+$("cm-ct-add").onclick = async () => {
+  if (needCardTrader()) return;
+  const btn = $("cm-ct-add");
+  const { card, lang } = modalContext();
+  btn.disabled = true;
+  btn.textContent = "Buscando la mejor oferta…";
+  try {
+    const r = await CardTraderAccount.addBest(Number(btn.dataset.bp), lang);
+    if (r) toast(`${card.name} añadida a tu carrito de CardTrader: ${describeOffer(r)}`);
+    else toast(`No hay ofertas de ${card.name} en ${langName(lang).toLowerCase()} ahora mismo`);
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = `⚡ Añadir a mi carrito de CardTrader (${flag(lang)})`;
+  }
 };
 $("cm-langs").onclick = (e) => {
   const b = e.target.closest("[data-lang]");
@@ -740,16 +773,46 @@ async function optimizeCart() {
       <small>${best ? `${best.label}, envíos incluidos` : "Precio de tendencia de Cardmarket"}${best && leftover.length ? ` + ${leftover.length} carta(s) en Cardmarket sin envíos` : ""}</small>
     </div>
     ${options.length ? `<div class="opt-rows">${options.map(row).join("")}</div>` : ""}
+    ${ctItems.length ? `<button class="btn send-ct" id="btn-send-ct">⚡ Enviar a mi carrito de CardTrader</button>
+      <p class="tiny muted" id="send-ct-msg">Añade a tu carrito de CardTrader la mejor oferta calidad/precio de cada carta, en su idioma. La compra la confirmas tú allí.</p>` : ""}
     <h3 class="opt-h">Dónde comprar cada carta</h3>
     <div id="opt-detail">${best ? detailOf(best.key) : ""}${leftoverDetail()}</div>
     <p class="muted tiny">${ct ? `Ofertas de CardTrader del ${new Date(ct.updated).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}: en el idioma de cada línea, Near Mint o mejor, versión normal (sin reverse holo), envío a España. ` : ""}En Pokémon, por ahora solo hay ofertas de CardTrader para Escarlata y Púrpura y Megaevolución; el resto se estima con Cardmarket. Los precios pueden haber cambiado y no incluyen comisiones de pago. Para comprar, abre cada carta y elige la oferta del país indicado.</p>`;
 
+  let chosen = best?.key;
   out.querySelectorAll("[data-show]").forEach((b) => {
     b.onclick = () => {
       out.querySelectorAll("[data-show]").forEach((x) => x.classList.toggle("best", x === b));
+      chosen = b.dataset.show;
       $("opt-detail").innerHTML = detailOf(b.dataset.show) + leftoverDetail();
     };
   });
+
+  // Enviar al carrito real de CardTrader, una carta tras otra (respetando el límite de la API)
+  const send = $("btn-send-ct");
+  if (send) send.onclick = async () => {
+    if (needCardTrader()) return;
+    const zeroKeys = chosen === "zero" ? new Set(ctItems) : chosen === "mixed" ? new Set(mixed.zero.picks.map(([k]) => k)) : new Set();
+    const counts = new Map();
+    for (const k of ctItems) counts.set(k, (counts.get(k) || 0) + 1);
+    send.disabled = true;
+    let ok = 0, fail = 0, spent = 0, i = 0;
+    for (const [key, qty] of counts) {
+      $("send-ct-msg").textContent = `Añadiendo ${++i} de ${counts.size}…`;
+      try {
+        const r = await CardTraderAccount.addBest(ct.cards[cardOf(key)].bp, key.split("@")[1], { zero: zeroKeys.has(key), qty });
+        if (r) { ok += qty; spent += r.price * qty; } else fail += qty;
+      } catch (e) {
+        $("send-ct-msg").textContent = e.message;
+        send.disabled = false;
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 200));
+    }
+    send.disabled = false;
+    $("send-ct-msg").innerHTML = `Listo: ${ok} carta(s) añadidas a tu carrito de CardTrader por ${cents(spent)} (sin envío).${fail ? ` ${fail} ya no tenían ofertas.` : ""}
+      <a href="https://www.cardtrader.com/es/cart" target="_blank" rel="noopener">Abrir mi carrito de CardTrader ↗</a>`;
+  };
 }
 
 // ---------- Cuenta ----------
@@ -782,6 +845,37 @@ function renderAccount() {
       catch (err) { $("login-msg").textContent = "No se pudo enviar: " + err.message; }
     };
   }
+  body.insertAdjacentHTML("beforeend", cardTraderSection());
+  bindCardTraderSection();
+}
+
+// Conexión con CardTrader (token propio, solo en este dispositivo)
+function cardTraderSection() {
+  if (CardTraderAccount.connected()) {
+    const name = CardTraderAccount.info?.name || "tu cuenta";
+    return `<div class="ct-box"><h3>CardTrader conectado</h3>
+      <p class="tiny">Conectado como <b>${escapeHtml(name)}</b> en este dispositivo. Puedes añadir cartas a tu carrito de CardTrader desde la lupa o el carrito.</p>
+      <button class="btn-ghost small" id="btn-ct-off">Desconectar</button></div>`;
+  }
+  return `<div class="ct-box"><h3>Conectar CardTrader</h3>
+    <p class="tiny">Para añadir cartas a tu carrito de CardTrader con un clic. Copia tu token en
+      <a href="https://www.cardtrader.com/es/full_api_app" target="_blank" rel="noopener">cardtrader.com → API</a> y pégalo aquí.</p>
+    <form id="ct-form" class="login-form">
+      <input id="ct-token" type="password" placeholder="Token de CardTrader" autocomplete="off" required>
+      <button class="btn small" type="submit">Conectar</button>
+    </form>
+    <p class="tiny muted" id="ct-msg">El token da acceso a tu cuenta de CardTrader: se guarda solo en este navegador, nunca en los servidores de Binder, y solo lo usamos para ver ofertas y llenar tu carrito. Nunca compra por ti.</p></div>`;
+}
+function bindCardTraderSection() {
+  const off = $("btn-ct-off");
+  if (off) off.onclick = () => { CardTraderAccount.disconnect(); renderAccount(); toast("CardTrader desconectado"); };
+  const form = $("ct-form");
+  if (form) form.onsubmit = async (e) => {
+    e.preventDefault();
+    $("ct-msg").textContent = "Comprobando…";
+    try { await CardTraderAccount.connect($("ct-token").value); renderAccount(); toast("CardTrader conectado"); }
+    catch (err) { $("ct-msg").textContent = err.message; }
+  };
 }
 
 // ---------- Navegación ----------
@@ -937,3 +1031,4 @@ updateBadge();
 renderAccount();
 route();
 Auth.init().catch((e) => console.warn("Login no disponible", e));
+CardTraderAccount.load();
