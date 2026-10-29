@@ -43,5 +43,7 @@ jobs:
             echo "Sin cambios"
           else
             git commit -m "Precios del $(date -u +%Y-%m-%d)"
+            # Si alguien ha subido cambios mientras tanto, se integran antes de guardar
+            git pull --rebase -X theirs origin main
             git push
           fi
