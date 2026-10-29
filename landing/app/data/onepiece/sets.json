@@ -1,0 +1,138 @@
+{
+ "updated": "2026-10-29T17:20+00:00",
+ "pricesCreatedAt": "2026-10-29T02:53:07+0100",
+ "sets": [
+  {
+   "id": "OP-17",
+   "name": "The World's Strongest Warriors",
+   "total": 161,
+   "order": 21
+  },
+  {
+   "id": "OP-16",
+   "name": "The Time of Battle",
+   "total": 153,
+   "order": 20
+  },
+  {
+   "id": "OP15-EB04",
+   "name": "Adventure on Kami's Island",
+   "total": 196,
+   "order": 19
+  },
+  {
+   "id": "EB-03",
+   "name": "Extra Booster: One Piece Heroines Edition",
+   "total": 94,
+   "order": 18
+  },
+  {
+   "id": "OP14-EB04",
+   "name": "The Azure Sea's Seven",
+   "total": 198,
+   "order": 17
+  },
+  {
+   "id": "OP-13",
+   "name": "Carrying On His Will",
+   "total": 173,
+   "order": 16
+  },
+  {
+   "id": "PRB-02",
+   "name": "Premium Booster - The Best - Vol. 2",
+   "total": 304,
+   "order": 15
+  },
+  {
+   "id": "PRB-01",
+   "name": "Premium Booster - The Best",
+   "total": 309,
+   "order": 14
+  },
+  {
+   "id": "OP-12",
+   "name": "Legacy of the Master",
+   "total": 155,
+   "order": 13
+  },
+  {
+   "id": "EB-02",
+   "name": "Extra Booster: Anime 25th Collection",
+   "total": 105,
+   "order": 12
+  },
+  {
+   "id": "OP-11",
+   "name": "A Fist of Divine Speed",
+   "total": 156,
+   "order": 11
+  },
+  {
+   "id": "OP-10",
+   "name": "Royal Blood",
+   "total": 151,
+   "order": 10
+  },
+  {
+   "id": "OP-09",
+   "name": "Emperors in the New World",
+   "total": 159,
+   "order": 9
+  },
+  {
+   "id": "OP-08",
+   "name": "Two Legends",
+   "total": 151,
+   "order": 8
+  },
+  {
+   "id": "EB-01",
+   "name": "Extra Booster: Memorial Collection",
+   "total": 80,
+   "order": 7
+  },
+  {
+   "id": "OP-07",
+   "name": "500 Years in the Future",
+   "total": 151,
+   "order": 6
+  },
+  {
+   "id": "OP-06",
+   "name": "Wings of the Captain",
+   "total": 151,
+   "order": 5
+  },
+  {
+   "id": "OP-05",
+   "name": "Awakening of the New Era",
+   "total": 154,
+   "order": 4
+  },
+  {
+   "id": "OP-04",
+   "name": "Kingdoms of Intrigue",
+   "total": 155,
+   "order": 3
+  },
+  {
+   "id": "OP-03",
+   "name": "Pillars of Strength",
+   "total": 154,
+   "order": 2
+  },
+  {
+   "id": "OP-02",
+   "name": "Paramount War",
+   "total": 154,
+   "order": 1
+  },
+  {
+   "id": "OP-01",
+   "name": "Romance Dawn",
+   "total": 154,
+   "order": 0
+  }
+ ]
+}

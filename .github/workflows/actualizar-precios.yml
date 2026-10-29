@@ -1,0 +1,42 @@
+# Actualiza cada día los datos y precios de One Piece (catálogo de optcgapi.com + precios de Cardmarket)
+# y los guarda en el repositorio. La app los lee directamente desde GitHub, así que no hace falta
+# volver a publicar en Netlify.
+name: Actualizar precios
+
+on:
+  schedule:
+    - cron: "30 4 * * *"   # 04:30 UTC, después de que Cardmarket publique sus archivos del día
+  workflow_dispatch:       # botón "Run workflow" para lanzarlo a mano
+
+permissions:
+  contents: write
+
+concurrency:
+  group: actualizar-precios
+  cancel-in-progress: false
+
+jobs:
+  onepiece:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generar datos de One Piece
+        run: python -I tools/build_onepiece.py
+
+      - name: Guardar cambios
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add landing/app/data
+          if git diff --cached --quiet; then
+            echo "Sin cambios"
+          else
+            git commit -m "Precios del $(date -u +%Y-%m-%d)"
+            git push
+          fi

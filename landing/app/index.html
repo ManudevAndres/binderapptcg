@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Binder — Mi colección</title>
+<meta name="description" content="Marca las cartas que tienes, mira cuánto te cuesta completar cada set y exporta tu lista de faltantes.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-inner">
+    <a class="logo" href="../"><span class="logo-mark"></span>Binder</a>
+    <span class="beta">beta</span>
+    <div class="spacer"></div>
+    <button class="btn-ghost small" id="btn-home" hidden>← Mis sets</button>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- Vista: elegir set -->
+  <section id="view-sets">
+    <div class="seg game-tabs" id="game-tabs" role="tablist">
+      <button data-game="pokemon" class="on">Pokémon</button>
+      <button data-game="onepiece">One Piece</button>
+    </div>
+    <div class="intro">
+      <h1 id="intro-title">Elige un set de Pokémon</h1>
+      <p>Marca las cartas que tienes y te decimos cuánto cuesta completarlo con precios de Cardmarket actualizados a diario.</p>
+    </div>
+
+    <div id="my-sets-block" hidden>
+      <h2 class="h-sm">Mis colecciones</h2>
+      <div class="set-list" id="my-sets"></div>
+    </div>
+
+    <div class="toolbar">
+      <input type="search" id="set-search" placeholder="Buscar set (ej.: Oscuridad, 151, Evoluciones…)" autocomplete="off">
+    </div>
+    <div class="set-list" id="all-sets"><p class="muted">Cargando sets…</p></div>
+  </section>
+
+  <!-- Vista: set -->
+  <section id="view-set" hidden>
+    <div class="set-head">
+      <img id="set-logo" alt="">
+      <div class="set-head-info">
+        <h1 id="set-name"></h1>
+        <p class="muted" id="set-meta"></p>
+        <div class="progress big"><i id="set-progress"></i></div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><span>Tengo</span><b id="st-have">–</b></div>
+      <div class="stat"><span>Me faltan</span><b id="st-miss">–</b></div>
+      <div class="stat accent"><span>Coste para completar</span><b id="st-cost">–</b></div>
+      <div class="stat"><span>Valor de lo que tengo</span><b id="st-value">–</b></div>
+    </div>
+    <p class="muted tiny" id="price-status"></p>
+
+    <div class="toolbar sticky">
+      <div class="seg" id="card-filter" role="tablist">
+        <button data-filter="all" class="on">Todas</button>
+        <button data-filter="have">Tengo</button>
+        <button data-filter="miss">Faltan</button>
+      </div>
+      <input type="search" id="card-search" placeholder="Buscar carta…" autocomplete="off">
+      <div class="toolbar-actions">
+        <button class="btn-ghost small" id="btn-all">Marcar todas</button>
+        <button class="btn-ghost small" id="btn-none">Desmarcar todas</button>
+        <button class="btn small" id="btn-list">Lista de faltantes</button>
+      </div>
+    </div>
+    <p class="muted tiny hint">Toca una carta para marcarla como <b>tengo</b>. Las que no marques son tus faltantes.</p>
+
+    <div class="cards" id="cards"></div>
+  </section>
+</main>
+
+<!-- Panel lista de faltantes -->
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer-bg" data-close></div>
+  <aside class="drawer-panel" role="dialog" aria-labelledby="drawer-title">
+    <div class="drawer-head">
+      <h2 id="drawer-title">Lista de faltantes</h2>
+      <button class="icon-btn" data-close aria-label="Cerrar">✕</button>
+    </div>
+    <p class="muted" id="drawer-sum"></p>
+    <div class="drawer-actions">
+      <button class="btn small" id="btn-copy">Copiar lista</button>
+      <button class="btn-ghost small" id="btn-csv">Descargar CSV</button>
+    </div>
+    <ol class="miss-list" id="miss-list"></ol>
+    <p class="muted tiny">Precio = tendencia de Cardmarket (estado Near Mint, versión normal). Es orientativo: el precio final depende del vendedor y del envío.</p>
+  </aside>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<footer class="wrap foot">Datos de cartas e imágenes: <a href="https://tcgdex.dev" target="_blank" rel="noopener">TCGdex</a> (Pokémon) y <a href="https://optcgapi.com" target="_blank" rel="noopener">OPTCG API</a> (One Piece) · Precios: Cardmarket · Binder es un proyecto independiente, sin relación con The Pokémon Company, Bandai ni Cardmarket.</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
