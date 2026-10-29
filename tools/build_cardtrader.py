@@ -36,7 +36,7 @@ OUT = DATA / "cardtrader"
 CT_GAME = {"onepiece": 15, "pokemon": 5}
 POKEMON_SERIES = ["sv", "me"]          # Escarlata y Púrpura + Megaevolución
 # Idiomas que guardamos por juego (códigos de CardTrader)
-LANGUAGES = {"pokemon": ["es", "en", "fr", "de", "it", "pt", "jp"], "onepiece": ["en", "jp", "fr"]}
+LANGUAGES = {"pokemon": ["es", "en", "fr", "de", "it", "pt"], "onepiece": ["en", "jp", "fr"]}
 CONDITIONS = {"Mint", "Near Mint"}
 OFFERS_PER_LANG = 5
 MAX_METHODS = 4
@@ -98,8 +98,16 @@ def onepiece_cards():
     out = {}
     for s in sets:
         data = json.loads((folder / f"{s['id']}.json").read_text(encoding="utf-8"))
-        out[s["id"]] = {c["id"]: c.get("idProduct") for c in data["cards"] if c.get("idProduct")}
+        # Todas las cartas: las que no casen por ID de Cardmarket se intentan por número de colección
+        out[s["id"]] = {c["id"]: c.get("idProduct") for c in data["cards"]}
     return out
+
+
+def onepiece_collector(card_id):
+    """EB01-001 → EB01-001; EB01-001_p1 → EB01-001a (así numera CardTrader las versiones alternativas)."""
+    m = re.match(r"^(.+?)(?:_p(\d+))?$", card_id)
+    code, p = m.group(1), int(m.group(2) or 0)
+    return code + ("" if not p else chr(ord("a") + p - 1))
 
 
 def pokemon_cards():
@@ -170,9 +178,10 @@ def compact_methods(methods):
 def offers_for_game(game, binder_sets, expansions):
     """Devuelve { set_id: { card_id: (blueprint, [ofertas]) } }."""
     exps = [e for e in expansions if e.get("game_id") == CT_GAME[game] and not SKIP_EXPANSION.search(e.get("name") or "")]
-    wanted_cm = {cm for cards in binder_sets.values() for cm in cards.values()}
+    wanted_cm = {cm for cards in binder_sets.values() for cm in cards.values() if cm}
+    exp_code = {e["id"]: (e.get("code") or "").replace("-", "").lower() for e in exps}
 
-    cm_to_bp, bp_exp = {}, {}
+    cm_to_bp, bp_exp, by_collector = {}, {}, {}
 
     def blueprints(e):
         try:
@@ -185,11 +194,30 @@ def offers_for_game(game, binder_sets, expansions):
                 if cm in wanted_cm:
                     cm_to_bp.setdefault(cm, b["id"])
                     bp_exp[b["id"]] = exp_id
-    print(f"{game}: {len(exps)} expansiones revisadas, {len(cm_to_bp)} de {len(wanted_cm)} cartas emparejadas")
+            cn = (b.get("fixed_properties") or {}).get("collector_number")
+            if game == "onepiece" and cn:
+                by_collector.setdefault(cn.upper(), []).append((exp_id, b["id"]))
 
-    needed = sorted(set(bp_exp.values()))
+    def bp_for(card_id, cm):
+        if cm in cm_to_bp:
+            return cm_to_bp[cm]
+        if game != "onepiece":
+            return None
+        options = by_collector.get(onepiece_collector(card_id).upper(), [])
+        prefix = card_id.split("-")[0].lower()           # p. ej. "eb01": mejor la expansión original
+        options = sorted(options, key=lambda x: not exp_code[x[0]].startswith(prefix))
+        if options:
+            bp_exp[options[0][1]] = options[0][0]
+            return options[0][1]
+        return None
+
+    card_bp = {sid: {cid: bp for cid, cm in cards.items() if (bp := bp_for(cid, cm))} for sid, cards in binder_sets.items()}
+    total = sum(len(c) for c in binder_sets.values())
+    print(f"{game}: {len(exps)} expansiones revisadas, {sum(len(c) for c in card_bp.values())} de {total} cartas emparejadas", flush=True)
+
+    needed = sorted({bp_exp[bp] for cards in card_bp.values() for bp in cards.values()})
     print(f"{game}: descargando ofertas de {len(needed)} expansiones…", flush=True)
-    wanted_bp = set(cm_to_bp.values())
+    wanted_bp = {bp for cards in card_bp.values() for bp in cards.values()}
     offers, sample_props, langs_seen = {}, None, {}
 
     def market(exp_id):
@@ -216,8 +244,7 @@ def offers_for_game(game, binder_sets, expansions):
     print(f"{game}: idiomas vistos en las ofertas: {dict(sorted(langs_seen.items(), key=lambda x: -x[1]))}")
     print(f"{game}: ofertas válidas para {sum(1 for v in offers.values() if v)} de {len(wanted_bp)} cartas")
 
-    return {sid: {cid: (cm_to_bp[cm], offers.get(cm_to_bp[cm], {})) for cid, cm in cards.items() if cm in cm_to_bp}
-            for sid, cards in binder_sets.items()}
+    return {sid: {cid: (bp, offers.get(bp, {})) for cid, bp in cards.items()} for sid, cards in card_bp.items()}
 
 
 def main():
