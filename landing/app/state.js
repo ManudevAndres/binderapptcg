@@ -7,13 +7,16 @@
 // lists: [{ id, name, cards: [cardId], created }]
 // cart:  { "cardId@idioma": cantidad }
 // prefs: { lang: { pokemon: "es", onepiece: "en" } }   idioma por defecto de cada juego
+// history: [{ d: "2026-10-29", v: valor €, n: cartas }]   una foto al día del valor de la colección
+// alerts:  [{ id, card, l, below: €, created, hit: { price, at } | null }]   avisos de precio
 
 const LANGS = {
   pokemon: ["es", "en", "fr", "de", "it", "pt"],   // las cartas japonesas son de sets distintos (catálogo aparte)
   onepiece: ["en", "jp", "fr"],
 };
 const LANG_NAMES = { es: "Español", en: "Inglés", fr: "Francés", de: "Alemán", it: "Italiano", pt: "Portugués", jp: "Japonés", kr: "Coreano", "zh-CN": "Chino" };
-const LANG_FLAGS = { es: "🇪🇸", en: "🇬🇧", fr: "🇫🇷", de: "🇩🇪", it: "🇮🇹", pt: "🇵🇹", jp: "🇯🇵", kr: "🇰🇷", "zh-CN": "🇨🇳" };
+// País de la bandera de cada idioma (imágenes de flagcdn.com: Windows no pinta los emojis de banderas)
+const LANG_CC = { es: "es", en: "gb", fr: "fr", de: "de", it: "it", pt: "pt", jp: "jp", kr: "kr", "zh-CN": "cn" };
 const DEFAULT_LANG = { pokemon: "es", onepiece: "en" };
 
 const State = (() => {
@@ -23,7 +26,7 @@ const State = (() => {
   let saveTimer = null;
 
   function empty() {
-    return { v: 3, owned: {}, meta: {}, lists: [], cart: {}, prefs: { lang: { ...DEFAULT_LANG } }, updated: 0 };
+    return { v: 3, owned: {}, meta: {}, lists: [], cart: {}, prefs: { lang: { ...DEFAULT_LANG } }, history: [], alerts: [], updated: 0 };
   }
   function keyOf(p) { return "state:" + p; }
 
@@ -179,6 +182,32 @@ const State = (() => {
       changed();
     },
 
+    // Historial de valor (una entrada por día; la de hoy se actualiza)
+    recordValue(v, n) {
+      const d = new Date().toISOString().slice(0, 10);
+      const last = data.history[data.history.length - 1];
+      if (last?.d === d) { if (Math.abs(last.v - v) < 0.005 && last.n === n) return; last.v = v; last.n = n; }
+      else data.history.push({ d, v, n });
+      data.history = data.history.slice(-730);
+      changed();
+    },
+
+    // Alertas de precio
+    alertFor: (cardId, l) => data.alerts.find((a) => a.card === cardId && a.l === l),
+    setAlert(card, g, set, l, below) {
+      if (set) this.remember(card, g, set);
+      const a = this.alertFor(card.id, l);
+      if (a) { a.below = below; a.hit = null; }
+      else data.alerts.push({ id: listId(), card: card.id, l, below, created: Date.now(), hit: null });
+      changed();
+    },
+    removeAlert(id) { data.alerts = data.alerts.filter((a) => a.id !== id); changed(); },
+    markAlert(id, price) {
+      const a = data.alerts.find((x) => x.id === id);
+      if (a && !a.hit) { a.hit = { price, at: Date.now() }; changed(); }
+    },
+    resetAlert(id) { const a = data.alerts.find((x) => x.id === id); if (a) { a.hit = null; changed(); } },
+
     // Une los datos de otro perfil (solo cuando el usuario lo pide)
     mergeFrom(other) {
       const o = upgrade(other);
@@ -188,6 +217,7 @@ const State = (() => {
       for (const l of o.lists) if (!lists.has(l.id)) lists.set(l.id, l);
       data.lists = [...lists.values()];
       for (const [k, q] of Object.entries(o.cart)) data.cart[k] = Math.min(99, (data.cart[k] || 0) + q);
+      for (const a of o.alerts) if (!this.alertFor(a.card, a.l)) data.alerts.push(a);
       changed();
     },
   };

@@ -71,6 +71,12 @@ def price_of(entry):
     return None
 
 
+def avg_of(entry, key):
+    """Media de los últimos 7 / 30 días (avg7, avg30) para ver cómo evoluciona el precio."""
+    v = (entry or {}).get(key)
+    return round(v, 2) if v else None
+
+
 def main():
     products, price_guide = load_cardmarket(sys.argv[1] if len(sys.argv) > 1 else None)
     variants, prices = index_cardmarket(products, price_guide)
@@ -105,6 +111,8 @@ def main():
                 "parallel": bool(vidx),
                 "image": c.get("card_image"),
                 "price": price_of(prices.get(cm["idProduct"])) if cm else None,
+                "p7": avg_of(prices.get(cm["idProduct"]), "avg7") if cm else None,
+                "p30": avg_of(prices.get(cm["idProduct"]), "avg30") if cm else None,
                 "idProduct": cm["idProduct"] if cm else None,
             })
         if not cards:

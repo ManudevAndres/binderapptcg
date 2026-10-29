@@ -35,19 +35,23 @@ function priceLabel(p) {
   return `<span class="price${p.price >= 20 ? " hot" : ""}">${fmt(p.price)}</span>`;
 }
 
-const flag = (l) => LANG_FLAGS[l] || l;
 const langName = (l) => LANG_NAMES[l] || l;
+// Bandera del idioma como imagen (HTML)
+const flag = (l) => LANG_CC[l]
+  ? `<img class="flag-i" src="https://flagcdn.com/24x18/${LANG_CC[l]}.png" srcset="https://flagcdn.com/48x36/${LANG_CC[l]}.png 2x" width="18" height="13" alt="${langName(l)}" title="${langName(l)}">`
+  : escapeHtml(l || "");
+
+// Selector de idioma con banderas (botones)
+function langPicker(g, value, attrs = "") {
+  return `<span class="lang-pick" ${attrs}>${LANGS[g].map((l) =>
+    `<button type="button" class="lp${l === value ? " on" : ""}" data-lang="${l}" title="${langName(l)}" aria-label="${langName(l)}" aria-pressed="${l === value}">${flag(l)}</button>`).join("")}</span>`;
+}
 
 // Carta con su idProduct de Cardmarket (para enlazar la carta exacta)
 function withCm(card) {
   const cm = card.idProduct || prices.get(card.id)?.idProduct || State.data.meta[card.id]?.cm;
   if (cm && !State.data.meta[card.id]?.cm) State.setCardmarketId(card.id, cm);
   return cm ? { ...card, idProduct: cm } : card;
-}
-
-function langSelect(g, value, attrs = "") {
-  return `<select class="select lang-select" ${attrs}>${LANGS[g].map((l) =>
-    `<option value="${l}"${l === value ? " selected" : ""}>${flag(l)} ${langName(l)}</option>`).join("")}</select>`;
 }
 
 // Ofertas de CardTrader de una carta (para mostrar "desde X €" por idioma en la lupa)
@@ -85,6 +89,9 @@ async function ensureMeta(ids) {
   }
 }
 
+// Precio de una carta con datos incluidos (One Piece): tendencia + medias de 7 y 30 días
+const priceOf = (c) => ({ price: c.price ?? null, idProduct: c.idProduct ?? null, p7: c.p7 ?? null, p30: c.p30 ?? null });
+
 // Precios de cartas sueltas (colección, listas, carrito)
 async function loadPricesFor(ids, onEach) {
   const queue = [];
@@ -100,7 +107,7 @@ async function loadPricesFor(ids, onEach) {
   for (const [s, list] of opSets) {
     try {
       const data = await GAMES.onepiece.set(s);
-      for (const c of data.cards) if (list.includes(c.id)) { prices.set(c.id, { price: c.price ?? null, idProduct: c.idProduct ?? null }); onEach?.(c.id); }
+      for (const c of data.cards) if (list.includes(c.id)) { prices.set(c.id, priceOf(c)); onEach?.(c.id); }
     } catch { /* nada */ }
   }
   async function worker() {
@@ -155,7 +162,7 @@ function refreshTile(id) {
     el.classList.toggle("miss", !has);
     el.querySelector(".c-main").setAttribute("aria-pressed", has);
     const fl = el.querySelector(".flag");
-    fl.textContent = has ? flag(State.ownedLang(id)) : "";
+    fl.innerHTML = has ? flag(State.ownedLang(id)) : "";
     fl.title = has ? langName(State.ownedLang(id)) : "";
     const qty = State.cartQty(id);
     const cartBtn = el.querySelector('[data-act="cart"]');
@@ -183,7 +190,7 @@ function gridClick(e, sequence) {
     const l = State.lang(t.g);
     State.addToCart(withCm(t.card), t.g, t.set, l);
     refreshTile(t.card.id);
-    toast(`${t.card.name} (${flag(l)}) añadida al carrito`);
+    toast(`${t.card.name} (${langName(l).toLowerCase()}) añadida al carrito`);
   } else {
     openCard(t.card.id, sequence());
   }
@@ -237,23 +244,29 @@ function renderModal() {
     const addBtn = $("cm-ct-add");
     addBtn.hidden = !ct?.bp;
     addBtn.dataset.bp = ct?.bp || "";
-    addBtn.textContent = `⚡ Añadir a mi carrito de CardTrader (${flag(lang)})`;
+    addBtn.innerHTML = `⚡ Añadir a mi carrito de CardTrader ${flag(lang)}`;
   });
 
   const has = State.has(card.id);
   const ownLang = State.ownedLang(card.id);
-  $("cm-owned").textContent = !has ? `Marcar que la tengo (${flag(lang)})` : ownLang === lang ? `✓ La tengo en ${langName(lang).toLowerCase()}` : `La tengo en ${langName(ownLang).toLowerCase()} · cambiar a ${flag(lang)}`;
+  $("cm-owned").innerHTML = !has ? `Marcar que la tengo ${flag(lang)}` : ownLang === lang ? `✓ La tengo ${flag(lang)}` : `La tengo ${flag(ownLang)} · cambiar a ${flag(lang)}`;
   $("cm-owned").classList.toggle("on", has && ownLang === lang);
   const qty = State.cartQty(card.id, lang);
-  $("cm-cart").textContent = qty ? `🛒 En el carrito (${qty} ${flag(lang)}) · añadir otra` : `🛒 Añadir al carrito (${flag(lang)})`;
+  $("cm-cart").innerHTML = qty ? `🛒 En el carrito (${qty}) ${flag(lang)} · añadir otra` : `🛒 Añadir al carrito ${flag(lang)}`;
+
+  renderModalAlert(card, lang);
 
   const lists = State.data.lists;
   $("cm-lists").innerHTML = lists.map((l) =>
     `<button class="chip-btn${State.inList(l.id, card.id) ? " on" : ""}" data-list="${l.id}">${State.inList(l.id, card.id) ? "✓ " : "+ "}${escapeHtml(l.name)}</button>`
   ).join("") + `<button class="chip-btn new" data-list="__new">+ Nueva lista</button>`;
 
-  const links = (bp) => `<a href="${cardmarketUrl(card, g, lang)}" target="_blank" rel="noopener">Comprar en Cardmarket (${flag(lang)}) ↗</a>`
-    + (bp ? ` · <a href="${cardTraderUrl(bp)}" target="_blank" rel="noopener">Ver en CardTrader ↗</a>` : "");
+  const q = encodeURIComponent(`${card.name} ${card.code || card.n} ${set.name || ""}`.trim());
+  const links = (bp) => `<span class="ml-title">Comprar ${flag(lang)}</span>
+    <a href="${cardmarketUrl(card, g, lang)}" target="_blank" rel="noopener">Cardmarket ↗</a>`
+    + (bp ? `<a href="${cardTraderUrl(bp)}" target="_blank" rel="noopener">CardTrader ↗</a>` : "")
+    + `<a href="https://www.ebay.es/sch/i.html?_nkw=${q}" target="_blank" rel="noopener">eBay ↗</a>`
+    + `<a href="https://es.wallapop.com/app/search?keywords=${q}" target="_blank" rel="noopener">Wallapop ↗</a>`;
   $("cm-links").innerHTML = links(null);
 
   const i = modalSeq.indexOf(modalId);
@@ -285,7 +298,7 @@ $("cm-cart").onclick = () => {
   State.addToCart(card, g, set, lang);
   refreshTile(card.id);
   renderModal();
-  toast(`Añadida al carrito (${flag(lang)})`);
+  toast(`Añadida al carrito (${langName(lang).toLowerCase()})`);
 };
 // Añadir al carrito real de CardTrader la mejor oferta calidad/precio (con el token del usuario)
 function needCardTrader() {
@@ -312,7 +325,7 @@ $("cm-ct-add").onclick = async () => {
     toast(e.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = `⚡ Añadir a mi carrito de CardTrader (${flag(lang)})`;
+    btn.innerHTML = `⚡ Añadir a mi carrito de CardTrader ${flag(lang)}`;
   }
 };
 $("cm-langs").onclick = (e) => {
@@ -382,11 +395,15 @@ function setTile(s, g, have) {
 // Selector "Idioma de mis cartas" (por juego) en Explorar y en cada set
 function renderLangPrefs() {
   for (const id of ["lang-pref-sets", "lang-pref-set"]) {
-    $(id).innerHTML = langSelect(gameId, State.lang(gameId), `data-pref="1" aria-label="Idioma de mis cartas"`);
+    $(id).innerHTML = langPicker(gameId, State.lang(gameId), `data-pref="1" role="group" aria-label="Idioma de mis cartas"`);
   }
 }
-document.addEventListener("change", (e) => {
-  if (e.target.matches("select[data-pref]")) { State.setLang(gameId, e.target.value); renderLangPrefs(); toast(`Las cartas que marques serán en ${langName(e.target.value).toLowerCase()}`); }
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pref] [data-lang]");
+  if (!b) return;
+  State.setLang(gameId, b.dataset.lang);
+  renderLangPrefs();
+  toast(`Las cartas que marques serán en ${langName(b.dataset.lang).toLowerCase()}`);
 });
 
 function renderSets() {
@@ -422,7 +439,7 @@ async function openSet(g, id) {
 
   current = data;
   renderLangPrefs();
-  if (!game().price) for (const c of data.cards) prices.set(c.id, { price: c.price ?? null, idProduct: c.idProduct ?? null });
+  if (!game().price) for (const c of data.cards) prices.set(c.id, priceOf(c));
   document.title = `${data.name} — Binder`;
   $("set-name").textContent = data.name;
   $("set-meta").textContent = [...data.meta, `${data.cards.length} cartas`].filter(Boolean).join(" · ");
@@ -540,23 +557,96 @@ let colGame = "";
 async function showCollection() {
   const ids = Object.keys(State.data.owned);
   $("col-cards").innerHTML = ids.length ? `<p class="muted">Cargando tu colección…</p>` : emptyState("Aún no tienes cartas marcadas.", "Explora un set y toca las cartas que tienes.", "#/explorar", "Explorar sets");
-  if (!ids.length) { $("col-count").textContent = "0"; $("col-sets").textContent = "0"; $("col-value").textContent = fmt(0); return; }
+  if (!ids.length) {
+    $("col-count").textContent = "0"; $("col-sets").textContent = "0"; $("col-value").textContent = fmt(0); $("col-delta").textContent = "–";
+    $("portfolio").hidden = true;
+    return;
+  }
   await ensureMeta(ids);
   renderCollection();
   await loadPricesFor(ids, (id) => refreshTile(id));
-  renderCollection();
+  renderCollection(true);
 }
 
-function renderCollection() {
+// Valor de la colección hoy y hace 7 / 30 días (medias de Cardmarket), y cartas que más se mueven
+function portfolioStats(ids) {
+  let now = 0, d7 = 0, d30 = 0;
+  const movers = [];
+  for (const id of ids) {
+    const p = prices.get(id);
+    if (p?.price == null) continue;
+    now += p.price;
+    d7 += p.p7 ?? p.price;
+    d30 += p.p30 ?? p.price;
+    if (p.p30 >= 0.5) movers.push({ id, pct: (p.price - p.p30) / p.p30, diff: p.price - p.p30 });
+  }
+  movers.sort((a, b) => b.pct - a.pct);
+  return { now, d7, d30, up: movers.filter((m) => m.pct > 0.02).slice(0, 5), down: movers.filter((m) => m.pct < -0.02).reverse().slice(0, 5) };
+}
+
+const pct = (x) => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(1).replace(".", ",")} %`;
+
+// Gráfico de línea en SVG. points = [{ label, v, estimated }]
+function lineChart(points) {
+  const W = 560, H = 180, P = 28;
+  const vs = points.map((p) => p.v);
+  let min = Math.min(...vs), max = Math.max(...vs);
+  if (max - min < 1) { min -= 1; max += 1; }
+  const x = (i) => P + (i * (W - 2 * P)) / Math.max(1, points.length - 1);
+  const y = (v) => H - P - ((v - min) / (max - min)) * (H - 2 * P);
+  const path = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
+  const up = vs[vs.length - 1] >= vs[0];
+  const color = up ? "var(--ok)" : "var(--bad)";
+  return `<svg viewBox="0 0 ${W} ${H}" class="chart" role="img" aria-label="Evolución del valor de la colección">
+    <path d="${path} L${x(points.length - 1)},${H - P} L${x(0)},${H - P} Z" fill="${color}" opacity=".12"/>
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round"/>
+    ${points.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.v)}" r="4" fill="${color}"><title>${p.label}: ${fmt(p.v)}</title></circle>`).join("")}
+    ${points.length <= 8 ? points.map((p, i) => `<text x="${x(i)}" y="${H - 6}" text-anchor="${i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"}" class="chart-l">${escapeHtml(p.label)}</text>`).join("") : ""}
+    <text x="${P}" y="14" class="chart-l">${fmt(max)}</text><text x="${P}" y="${H - P + 14}" class="chart-l" opacity="0">.</text>
+  </svg>`;
+}
+
+function renderPortfolio(ids, record) {
+  const s = portfolioStats(ids);
+  $("portfolio").hidden = false;
+  const delta = s.d30 ? (s.now - s.d30) / s.d30 : 0;
+  $("col-delta").innerHTML = s.d30 ? `<span class="${delta >= 0 ? "up" : "down"}">${pct(delta)}</span>` : "–";
+  if (record && s.now > 0) State.recordValue(Math.round(s.now * 100) / 100, ids.length);
+
+  // Con pocas fotos diarias, se estima la tendencia con las medias de 30 y 7 días de Cardmarket
+  const hist = State.data.history;
+  let points, note;
+  if (hist.length >= 3) {
+    points = hist.slice(-60).map((h) => ({ label: new Date(h.d).toLocaleDateString("es-ES", { day: "numeric", month: "short" }), v: h.v }));
+    note = "Una foto al día de tu colección";
+  } else {
+    points = [{ label: "hace 30 días", v: s.d30 }, { label: "hace 7 días", v: s.d7 }, { label: "hoy", v: s.now }];
+    note = "Estimado con las medias de Cardmarket · tu historial real se irá llenando día a día";
+  }
+  $("col-chart").innerHTML = lineChart(points);
+  $("col-chart-note").textContent = note;
+
+  const row = (m) => {
+    const { card } = fromMeta(m.id);
+    return `<li data-id="${escapeHtml(m.id)}"><button class="mv" data-open="${escapeHtml(m.id)}">${card.img ? `<img src="${card.img}" alt="">` : ""}<span>${escapeHtml(card.name)}</span>
+      <b class="${m.pct >= 0 ? "up" : "down"}">${pct(m.pct)}</b><small>${fmt(prices.get(m.id).price)}</small></button></li>`;
+  };
+  $("col-up").innerHTML = s.up.map(row).join("") || `<li class="muted tiny">Nada sube más de un 2 % ahora mismo.</li>`;
+  $("col-down").innerHTML = s.down.map(row).join("") || `<li class="muted tiny">Nada baja más de un 2 % ahora mismo.</li>`;
+}
+
+function renderCollection(record = false) {
   if (location.hash !== "#/coleccion") return;
   const q = $("col-search").value.trim().toLowerCase();
   const sort = $("col-sort").value;
-  let items = Object.keys(State.data.owned).map(fromMeta);
+  const ids = Object.keys(State.data.owned);
+  let items = ids.map(fromMeta);
   const sets = new Set(items.map((x) => x.g + x.set.id));
   const value = items.reduce((s, x) => s + (prices.get(x.card.id)?.price || 0), 0);
   $("col-count").textContent = items.length;
   $("col-sets").textContent = sets.size;
   $("col-value").textContent = fmt(value);
+  renderPortfolio(ids, record);
 
   items = items.filter((x) => (!colGame || x.g === colGame) && (!q || x.card.name.toLowerCase().includes(q) || (x.set.name || "").toLowerCase().includes(q)));
   items.sort((a, b) =>
@@ -569,6 +659,107 @@ function renderCollection() {
   for (const x of items) grid.appendChild(cardTile(x.card, x.g, x.set, { mode: "open", sub: x.set.name }));
   if (!items.length) grid.innerHTML = `<p class="muted">No hay cartas que coincidan.</p>`;
 }
+
+// ---------- Alertas de precio ----------
+// Precio actual de una carta en un idioma: la oferta más barata de CardTrader en ese idioma
+// (envío aparte) o, si no hay datos, la tendencia de Cardmarket.
+async function currentPrice(id, lang) {
+  const { g, set } = fromMeta(id);
+  const ct = await cardTraderOffers(id, g, set.id);
+  const best = ct?.o?.[lang]?.[0];
+  if (best) return { price: best[0] / 100, source: "CardTrader" };
+  if (!prices.has(id)) await loadPricesFor([id]);
+  const p = prices.get(id)?.price;
+  return p != null ? { price: p, source: "Cardmarket" } : null;
+}
+
+async function checkAlerts() {
+  for (const a of State.data.alerts) {
+    if (a.hit) continue;
+    const now = await currentPrice(a.card, a.l).catch(() => null);
+    if (now && now.price <= a.below) {
+      State.markAlert(a.id, now.price);
+      const name = State.data.meta[a.card]?.name || a.card;
+      toast(`🔔 ${name} ha bajado a ${fmt(now.price)}`);
+      try { if (window.Notification?.permission === "granted") new Notification("Binder · alerta de precio", { body: `${name} (${langName(a.l)}) está a ${fmt(now.price)} en ${now.source}` }); }
+      catch { /* sin notificaciones */ }
+    }
+  }
+  updateBadge();
+}
+
+async function showAlerts() {
+  const box = $("alert-list");
+  const alerts = State.data.alerts;
+  $("btn-notify").hidden = !window.Notification || Notification.permission === "granted";
+  if (!alerts.length) {
+    box.innerHTML = emptyState("No tienes alertas.", "Abre una carta con la lupa 🔍 y pon el precio al que quieres comprarla.", "#/explorar", "Explorar sets");
+    return;
+  }
+  await ensureMeta(alerts.map((a) => a.card));
+  box.innerHTML = alerts.map((a) => {
+    const { card, g, set } = fromMeta(a.card);
+    tiles.set(card.id, { card, g, set });
+    return `<div class="alert-row${a.hit ? " hit" : ""}" data-alert="${a.id}">
+      <button class="cl-img" data-open="${escapeHtml(a.card)}" aria-label="Ver carta">${card.img ? `<img loading="lazy" src="${card.img}" alt="">` : ""}</button>
+      <div class="cl-info"><b>${flag(a.l)} ${escapeHtml(card.name)}</b><small>${escapeHtml(set.name || "")} · #${escapeHtml(card.code || card.n)}</small>
+        <small>Avisar por debajo de <b>${fmt(a.below)}</b> · ahora <span data-now>…</span></small>
+        ${a.hit ? `<small class="up">✓ Bajó a ${fmt(a.hit.price)} el ${new Date(a.hit.at).toLocaleDateString("es-ES")}</small>` : ""}</div>
+      <div class="alert-actions">
+        ${a.hit ? `<button class="btn small" data-buy>🛒 Al carrito</button><button class="btn-ghost small" data-reset>Volver a vigilar</button>` : ""}
+        <button class="icon-btn" data-del aria-label="Borrar alerta">✕</button>
+      </div>
+    </div>`;
+  }).join("");
+  for (const a of alerts) {
+    currentPrice(a.card, a.l).then((now) => {
+      const el = box.querySelector(`[data-alert="${a.id}"] [data-now]`);
+      if (el) el.textContent = now ? `${fmt(now.price)} (${now.source})` : "sin precio";
+    });
+  }
+}
+
+$("alert-list").onclick = (e) => {
+  const row = e.target.closest("[data-alert]");
+  if (!row) return;
+  const a = State.data.alerts.find((x) => x.id === row.dataset.alert);
+  if (!a) return;
+  if (e.target.closest("[data-open]")) { openCard(a.card, State.data.alerts.map((x) => x.card), a.l); return; }
+  if (e.target.closest("[data-del]")) { State.removeAlert(a.id); showAlerts(); return; }
+  if (e.target.closest("[data-reset]")) { State.resetAlert(a.id); showAlerts(); return; }
+  if (e.target.closest("[data-buy]")) {
+    const { card, g } = fromMeta(a.card);
+    State.addToCart(withCm(card), g, null, a.l);
+    toast("Añadida al carrito");
+  }
+};
+$("btn-notify").onclick = async () => {
+  const p = await Notification.requestPermission();
+  toast(p === "granted" ? "Te avisaremos también con notificaciones del navegador" : "Sin permiso para notificaciones");
+  showAlerts();
+};
+
+// Formulario de alerta en la lupa
+async function renderModalAlert(card, lang) {
+  const a = State.alertFor(card.id, lang);
+  const input = $("cm-alert-price");
+  $("cm-alert-btn").textContent = a ? "Cambiar alerta" : "Crear alerta";
+  $("cm-alert-msg").textContent = a ? (a.hit ? `✓ Alerta cumplida: bajó a ${fmt(a.hit.price)}` : `Alerta activa: te avisamos si baja de ${fmt(a.below)}.`) : "";
+  if (a) { input.value = a.below; return; }
+  input.value = "";
+  const now = await currentPrice(card.id, lang).catch(() => null);
+  if (now && modalId === card.id && !input.value) input.value = Math.max(0.01, Math.floor(now.price * 0.9 * 100) / 100);
+}
+$("cm-alert").onsubmit = (e) => {
+  e.preventDefault();
+  const { card, g, set, lang } = modalContext();
+  const below = Number($("cm-alert-price").value);
+  if (!(below > 0)) return;
+  State.setAlert(card, g, set, lang, below);
+  renderModalAlert(card, lang);
+  toast(`Te avisaremos si baja de ${fmt(below)}`);
+  checkAlerts();
+};
 
 function emptyState(title, text, href, label) {
   return `<div class="empty"><b>${title}</b><p>${text}</p><a class="btn small" href="${href}">${label}</a></div>`;
@@ -659,7 +850,7 @@ function renderCart() {
       <div class="cl-info"><b>${escapeHtml(card.name)}${card.parallel ? " <em>(paralela)</em>" : ""}</b>
         <small>${GAMES[g].name} · ${escapeHtml(set.name || "")} · #${escapeHtml(card.code || card.n)}</small>
         <small>${p === undefined ? "…" : p?.price != null ? fmt(p.price) + " c/u en Cardmarket" : "sin precio"}</small>
-        ${langSelect(g, lang, `data-cartlang aria-label="Idioma"`)}</div>
+        ${langPicker(g, lang, `data-cartlang role="group" aria-label="Idioma"`)}</div>
       <div class="qty"><button data-q="-1" aria-label="Quitar una">−</button><span>${qty}</span><button data-q="1" aria-label="Añadir una">+</button></div>
     </div>`;
   }).join("");
@@ -680,14 +871,11 @@ $("cart-items").onclick = (e) => {
   if (!line) return;
   const key = line.dataset.key;
   const [id, lang] = key.split("@");
+  const lp = e.target.closest("[data-cartlang] [data-lang]");
+  if (lp) { if (lp.dataset.lang !== lang) { State.changeCartLang(key, lp.dataset.lang); renderCart(); } return; }
   const q = e.target.closest("[data-q]");
   if (q) { State.setCartQty(key, (State.data.cart[key] || 0) + Number(q.dataset.q)); renderCart(); return; }
   if (e.target.closest('[data-act="zoom"]')) openCard(id, [...new Set(Object.keys(State.data.cart).map((k) => k.split("@")[0]))], lang);
-};
-$("cart-items").onchange = (e) => {
-  if (!e.target.matches("[data-cartlang]")) return;
-  State.changeCartLang(e.target.closest(".cart-line").dataset.key, e.target.value);
-  renderCart();
 };
 
 async function optimizeCart() {
@@ -879,7 +1067,7 @@ function bindCardTraderSection() {
 }
 
 // ---------- Navegación ----------
-const VIEWS = ["view-sets", "view-set", "view-collection", "view-lists", "view-list", "view-cart"];
+const VIEWS = ["view-sets", "view-set", "view-collection", "view-lists", "view-list", "view-cart", "view-alerts"];
 function showView(v, nav) {
   for (const id of VIEWS) $(id).hidden = id !== v;
   document.querySelectorAll("#nav a").forEach((a) => a.classList.toggle("on", a.dataset.nav === nav));
@@ -907,6 +1095,9 @@ function route() {
   } else if (h === "#/carrito") {
     current = null; document.title = "Carrito — Binder";
     showView("view-cart", "carrito"); showCart();
+  } else if (h === "#/alertas") {
+    current = null; document.title = "Alertas — Binder";
+    showView("view-alerts", "alertas"); showAlerts();
   } else {
     const g = h.match(/^#\/(\w+)$/)?.[1];
     document.title = "Binder — Explorar";
@@ -919,6 +1110,9 @@ function updateBadge() {
   const n = State.cartCount();
   $("cart-badge").hidden = !n;
   $("cart-badge").textContent = n;
+  const hits = State.data.alerts.filter((a) => a.hit).length;
+  $("alert-badge").hidden = !hits;
+  $("alert-badge").textContent = hits;
 }
 
 // ---------- Eventos ----------
@@ -945,6 +1139,60 @@ $("btn-none").onclick = () => {
   renderSetCards();
 };
 $("btn-list").onclick = openDrawer;
+
+// ---------- Escáner ----------
+function scanMatched(found) {
+  const c = found[0];
+  const was = State.has(c.id);
+  if (!was) State.setOwned(c, gameId, current, true);
+  refreshTile(c.id);
+  updateSetStats();
+  if (navigator.vibrate) navigator.vibrate(60);
+  const others = found.length > 1 ? ` <small class="muted">(hay ${found.length} versiones; si era otra, márcala en la cuadrícula)</small>` : "";
+  $("scan-found").insertAdjacentHTML("afterbegin", `<div class="scan-hit">
+    ${c.img ? `<img src="${c.img}" alt="">` : ""}<span><b>${escapeHtml(c.name)}</b> #${escapeHtml(c.code || c.n)} ${flag(State.ownedLang(c.id))}<br>
+    <small>${was ? "Ya la tenías" : "✓ Añadida a tu colección"}</small>${others}</span>
+    ${was ? "" : `<button class="btn-ghost small" data-undo="${escapeHtml(c.id)}">Deshacer</button>`}</div>`);
+  $("scan-status").textContent = "¡Leída! Pasa a la siguiente carta.";
+}
+$("btn-scan").onclick = async () => {
+  $("scan-modal").hidden = false;
+  $("scan-found").innerHTML = "";
+  $("scan-help").innerHTML = gameId === "onepiece"
+    ? `Acerca la esquina de abajo a la derecha, donde pone el código (p. ej. <b>OP01-001</b>), al recuadro. Se marcan en ${flag(State.lang(gameId))} y en este set: <b>${escapeHtml(current.name)}</b>.`
+    : `Acerca la esquina de abajo a la izquierda, donde pone el número (p. ej. <b>001/165</b>), al recuadro. Se marcan en ${flag(State.lang(gameId))} y en este set: <b>${escapeHtml(current.name)}</b>.`;
+  if (!Scanner.supported()) { $("scan-status").textContent = "Este navegador no permite usar la cámara: sube una foto."; return; }
+  $("scan-status").textContent = "Preparando la cámara y el lector (la primera vez tarda unos segundos)…";
+  try {
+    await Scanner.start($("scan-video"), current.cards, scanMatched);
+    $("scan-status").textContent = "Buscando el número…";
+  } catch (e) {
+    $("scan-status").textContent = e.name === "NotAllowedError" ? "Sin permiso para la cámara. Puedes subir una foto." : "No se pudo abrir la cámara: " + e.message;
+  }
+};
+$("scan-found").onclick = (e) => {
+  const b = e.target.closest("[data-undo]");
+  if (!b) return;
+  const c = current.cards.find((x) => x.id === b.dataset.undo);
+  if (c) { State.setOwned(c, gameId, current, false); refreshTile(c.id); updateSetStats(); }
+  b.closest(".scan-hit").remove();
+};
+$("scan-file").onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  $("scan-status").textContent = "Leyendo la foto…";
+  const img = new Image();
+  await new Promise((ok, ko) => { img.onload = ok; img.onerror = () => ko(new Error("No se pudo abrir la foto")); img.src = URL.createObjectURL(file); });
+  try {
+    const r = await Scanner.fromImage(img, current.cards);
+    if (r.found.length) scanMatched(r.found);
+    else $("scan-status").textContent = "No he encontrado el número en la foto. Prueba más cerca y con buena luz.";
+  } catch (err) { $("scan-status").textContent = err.message; }
+  URL.revokeObjectURL(img.src);
+  e.target.value = "";
+};
+function closeScanner() { Scanner.stop(); $("scan-modal").hidden = true; }
+$("scan-modal").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) closeScanner(); });
 $("btn-miss-cart").onclick = () => {
   const miss = current.cards.filter((c) => !State.has(c.id) && !State.cartQty(c.id));
   if (!miss.length) { toast("Ya tienes (o están en el carrito) todas las cartas"); return; }
@@ -967,8 +1215,12 @@ document.querySelectorAll("#col-game button").forEach((b) => {
     renderCollection();
   };
 });
-$("col-search").addEventListener("input", renderCollection);
-$("col-sort").addEventListener("change", renderCollection);
+$("col-search").addEventListener("input", () => renderCollection());
+$("col-sort").addEventListener("change", () => renderCollection());
+$("portfolio").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-open]");
+  if (b) openCard(b.dataset.open, [...$("portfolio").querySelectorAll("[data-open]")].map((x) => x.dataset.open));
+});
 
 $("new-list-form").onsubmit = (e) => {
   e.preventDefault();
@@ -1003,7 +1255,7 @@ for (const id of ["drawer", "card-modal", "account-modal"]) {
   $(id).addEventListener("click", (e) => { if (e.target.closest("[data-close]")) $(id).hidden = true; });
 }
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") ["drawer", "card-modal", "account-modal"].forEach((id) => ($(id).hidden = true));
+  if (e.key === "Escape") { ["drawer", "card-modal", "account-modal"].forEach((id) => ($(id).hidden = true)); if (!$("scan-modal").hidden) closeScanner(); }
   if (!$("card-modal").hidden && e.key === "ArrowLeft") modalStep(-1);
   if (!$("card-modal").hidden && e.key === "ArrowRight") modalStep(1);
 });
@@ -1030,5 +1282,5 @@ window.addEventListener("hashchange", route);
 updateBadge();
 renderAccount();
 route();
-Auth.init().catch((e) => console.warn("Login no disponible", e));
+Auth.init().catch((e) => console.warn("Login no disponible", e)).finally(() => setTimeout(checkAlerts, 1500));
 CardTraderAccount.load();

@@ -107,13 +107,15 @@ const GAMES = {
       return data;
     },
     async price(cardId) {
-      const hit = cached("p:" + cardId, PRICE_TTL);
+      const hit = cached("p2:" + cardId, PRICE_TTL);
       if (hit !== null) return hit;
       try {
         const card = await getJSON(TCGDEX + "/cards/" + encodeURIComponent(cardId));
         const cm = card.pricing?.cardmarket;
-        const v = cm ? { price: cm.trend ?? cm.avg30 ?? cm.avg ?? null, idProduct: cm.idProduct ?? null } : { price: null, idProduct: null };
-        store.set("p:" + cardId, { t: Date.now(), v });
+        const v = cm
+          ? { price: cm.trend ?? cm.avg30 ?? cm.avg ?? null, idProduct: cm.idProduct ?? null, p7: cm.avg7 ?? null, p30: cm.avg30 ?? null }
+          : { price: null, idProduct: null };
+        store.set("p2:" + cardId, { t: Date.now(), v });
         return v;
       } catch {
         return { price: null, idProduct: null };

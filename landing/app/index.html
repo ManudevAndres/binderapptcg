@@ -20,6 +20,7 @@
       <a href="#/explorar" data-nav="explorar"><span class="ni">🔎</span><span>Explorar</span></a>
       <a href="#/coleccion" data-nav="coleccion"><span class="ni">📚</span><span>Mi colección</span></a>
       <a href="#/listas" data-nav="listas"><span class="ni">⭐</span><span>Listas</span></a>
+      <a href="#/alertas" data-nav="alertas"><span class="ni">🔔</span><span>Alertas</span><b class="badge" id="alert-badge" hidden>0</b></a>
       <a href="#/carrito" data-nav="carrito"><span class="ni">🛒</span><span>Carrito</span><b class="badge" id="cart-badge" hidden>0</b></a>
     </nav>
     <button class="btn-ghost small" id="btn-account">Entrar</button>
@@ -75,6 +76,7 @@
       <div class="toolbar-actions">
         <button class="btn-ghost small" id="btn-all">Marcar todas</button>
         <button class="btn-ghost small" id="btn-none">Desmarcar todas</button>
+        <button class="btn-ghost small" id="btn-scan">📷 Escanear</button>
         <button class="btn-ghost small" id="btn-list">Lista de faltantes</button>
         <button class="btn small" id="btn-miss-cart">🛒 Faltantes al carrito</button>
       </div>
@@ -87,10 +89,23 @@
   <!-- Mi colección -->
   <section id="view-collection" class="view" hidden>
     <div class="intro"><h1>Mi colección</h1><p>Todas tus cartas, de todos los sets.</p></div>
-    <div class="stats three">
+    <div class="stats">
       <div class="stat"><span>Cartas</span><b id="col-count">–</b></div>
       <div class="stat"><span>Sets</span><b id="col-sets">–</b></div>
       <div class="stat accent"><span>Valor estimado</span><b id="col-value">–</b></div>
+      <div class="stat"><span>Últimos 30 días</span><b id="col-delta">–</b></div>
+    </div>
+    <div class="portfolio" id="portfolio" hidden>
+      <div class="pf-chart">
+        <div class="pf-head"><b>Evolución del valor</b><small class="muted" id="col-chart-note"></small></div>
+        <div id="col-chart"></div>
+      </div>
+      <div class="pf-movers">
+        <h3>📈 Las que más suben <small class="muted">(30 días)</small></h3>
+        <ol class="movers" id="col-up"></ol>
+        <h3>📉 Las que más bajan</h3>
+        <ol class="movers" id="col-down"></ol>
+      </div>
     </div>
     <div class="toolbar">
       <div class="seg" id="col-game">
@@ -133,6 +148,13 @@
     <div class="cards" id="list-cards"></div>
   </section>
 
+  <!-- Alertas de precio -->
+  <section id="view-alerts" class="view" hidden>
+    <div class="intro"><h1>Alertas de precio</h1><p>Te avisamos cuando una carta baje del precio que tú digas. Créalas desde la lupa 🔍 de cualquier carta.</p></div>
+    <div class="toolbar"><button class="btn-ghost small" id="btn-notify">🔔 Activar avisos del navegador</button></div>
+    <div class="alert-list" id="alert-list"></div>
+  </section>
+
   <!-- Carrito -->
   <section id="view-cart" class="view" hidden>
     <div class="intro"><h1>Carrito</h1><p>Añade cartas desde cualquier set o lista y te calculamos la forma más barata de comprarlas.</p></div>
@@ -169,6 +191,13 @@
         <button class="btn" id="cm-cart">🛒 Añadir al carrito</button>
         <button class="btn-ghost" id="cm-ct-add" hidden>⚡ Comprar ya en CardTrader</button>
       </div>
+      <form class="cm-alert" id="cm-alert">
+        <label for="cm-alert-price">🔔 Avisarme si baja de</label>
+        <input id="cm-alert-price" type="number" min="0.01" step="0.01" inputmode="decimal" required>
+        <span>€</span>
+        <button class="btn-ghost small" type="submit" id="cm-alert-btn">Crear alerta</button>
+      </form>
+      <p class="tiny muted" id="cm-alert-msg"></p>
       <div class="cm-lists">
         <p class="tiny muted">Añadir a una lista</p>
         <div class="chips" id="cm-lists"></div>
@@ -196,6 +225,23 @@
   </aside>
 </div>
 
+<!-- Escáner -->
+<div class="modal" id="scan-modal" hidden>
+  <div class="modal-bg" data-close></div>
+  <div class="modal-panel small scan-panel" role="dialog" aria-labelledby="scan-title">
+    <button class="icon-btn modal-close" data-close aria-label="Cerrar">✕</button>
+    <h2 id="scan-title">Escanear cartas</h2>
+    <p class="tiny muted" id="scan-help"></p>
+    <div class="scan-view">
+      <video id="scan-video" playsinline muted></video>
+      <div class="scan-frame"><span>Pon aquí el número de la carta</span></div>
+    </div>
+    <p class="scan-status" id="scan-status">Preparando la cámara…</p>
+    <div class="scan-found" id="scan-found"></div>
+    <label class="btn-ghost small scan-upload">🖼️ O sube una foto<input type="file" accept="image/*" capture="environment" id="scan-file" hidden></label>
+  </div>
+</div>
+
 <!-- Cuenta -->
 <div class="modal" id="account-modal" hidden>
   <div class="modal-bg" data-close></div>
@@ -214,6 +260,7 @@
 <script src="optimizer.js"></script>
 <script src="auth.js"></script>
 <script src="cardtrader.js"></script>
+<script src="scanner.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
