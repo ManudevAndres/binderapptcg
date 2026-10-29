@@ -1,0 +1,22 @@
+# Exploración puntual de la API de CardTrader (solo lectura). Se lanza a mano desde Actions.
+name: Explorar CardTrader
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  explorar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Explorar
+        env:
+          CARDTRADER_TOKEN: ${{ secrets.CARDTRADER_TOKEN }}
+        run: python -I tools/cardtrader_explore.py
