@@ -2,8 +2,8 @@
 // Los datos del usuario (State) se guardan como un único documento JSON en la tabla user_data.
 // Sin configurar (URL vacía), la app funciona igual y guarda todo solo en este navegador.
 
-const SUPABASE_URL = "";
-const SUPABASE_KEY = "";   // clave pública "anon" / "publishable": es segura en el navegador gracias a RLS
+const SUPABASE_URL = "https://osaysgrdmdtpepgnruzd.supabase.co";
+const SUPABASE_KEY = "sb_publishable_BdAC27xK56aqhwzyyOcGAQ_hQSRIuAi";   // clave pública "anon" / "publishable": es segura en el navegador gracias a RLS
 
 const Auth = (() => {
   let client = null;
