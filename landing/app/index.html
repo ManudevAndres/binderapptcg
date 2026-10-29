@@ -74,7 +74,8 @@
       <div class="toolbar-actions">
         <button class="btn-ghost small" id="btn-all">Marcar todas</button>
         <button class="btn-ghost small" id="btn-none">Desmarcar todas</button>
-        <button class="btn small" id="btn-list">Lista de faltantes</button>
+        <button class="btn-ghost small" id="btn-list">Lista de faltantes</button>
+        <button class="btn small" id="btn-opt" hidden>Optimizar compra</button>
       </div>
     </div>
     <p class="muted tiny hint">Toca una carta para marcarla como <b>tengo</b>. Las que no marques son tus faltantes.</p>
@@ -101,10 +102,23 @@
   </aside>
 </div>
 
+<!-- Panel optimizador de compra -->
+<div class="drawer" id="opt-drawer" hidden>
+  <div class="drawer-bg" data-close></div>
+  <aside class="drawer-panel wide" role="dialog" aria-labelledby="opt-title">
+    <div class="drawer-head">
+      <h2 id="opt-title">Optimizar compra</h2>
+      <button class="icon-btn" data-close aria-label="Cerrar">✕</button>
+    </div>
+    <div id="opt-body"></div>
+  </aside>
+</div>
+
 <div class="toast" id="toast" hidden></div>
 
 <footer class="wrap foot">Datos de cartas e imágenes: <a href="https://tcgdex.dev" target="_blank" rel="noopener">TCGdex</a> (Pokémon) y <a href="https://optcgapi.com" target="_blank" rel="noopener">OPTCG API</a> (One Piece) · Precios: Cardmarket · Binder es un proyecto independiente, sin relación con The Pokémon Company, Bandai ni Cardmarket.</footer>
 
+<script src="optimizer.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

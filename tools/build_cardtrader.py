@@ -13,7 +13,9 @@ import json
 import os
 import re
 import sys
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -47,6 +49,21 @@ def get(path, **params):
                 time.sleep(2 + attempt * 3)
                 continue
             raise
+
+
+class RateLimiter:
+    def __init__(self, per_second):
+        self.interval = 1 / per_second
+        self.next = time.monotonic()
+        self.lock = threading.Lock()
+
+    def wait(self):
+        with self.lock:
+            now = time.monotonic()
+            delay = self.next - now
+            self.next = max(now, self.next) + self.interval
+        if delay > 0:
+            time.sleep(delay)
 
 
 def offer_ok(o):
@@ -132,13 +149,17 @@ def main():
         for o in items:
             u = o["user"]
             sellers.setdefault(u["id"], u)
-    shipping = {}
-    for i, (sid, u) in enumerate(sellers.items()):
+    def fetch_shipping(item):
+        sid, u = item
+        limiter.wait()
         try:
-            shipping[sid] = compact_methods(get("/shipping_methods", username=u["username"]))
-        except Exception as e:  # vendedor sin envíos a nuestro país, etc.
-            shipping[sid] = []
-        time.sleep(0.06)
+            return sid, compact_methods(get("/shipping_methods", username=u["username"]))
+        except Exception:  # vendedor sin envíos a nuestro país, etc.
+            return sid, []
+
+    limiter = RateLimiter(per_second=15)   # límite de la API: 200 llamadas cada 10 s
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        shipping = dict(pool.map(fetch_shipping, sellers.items()))
     print(f"{len(sellers)} vendedores con tarifas de envío")
 
     # 5) Un archivo por set, con vendedores anónimos (índice local)

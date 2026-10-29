@@ -9,9 +9,9 @@ const PRICE_TTL = DAY;
 const SET_TTL = 7 * DAY;
 const CONCURRENCY = 6;
 const TCGDEX = "https://api.tcgdex.net/v2/es";
-// Copia de data/onepiece/ que GitHub Actions actualiza a diario. Vacío = usar solo la copia publicada.
-const ONEPIECE_REMOTE = "https://raw.githubusercontent.com/ManudevAndres/binderapptcg/main/landing/app/data/onepiece/";
-const ONEPIECE_LOCAL = "data/onepiece/";
+// Copia de data/ que GitHub Actions actualiza a diario. Vacío = usar solo la copia publicada.
+const DATA_REMOTE = "https://raw.githubusercontent.com/ManudevAndres/binderapptcg/main/landing/app/data/";
+const DATA_LOCAL = "data/";
 
 const $ = (id) => document.getElementById(id);
 const eur = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
@@ -41,13 +41,14 @@ async function getJSON(url) {
   return res.json();
 }
 
-// Datos de One Piece: primero la copia diaria de GitHub; si falla, la que va con la web.
-async function onePieceData(file) {
-  if (ONEPIECE_REMOTE) {
-    try { return await getJSON(ONEPIECE_REMOTE + file); } catch { /* sigue con la local */ }
+// Datos generados a diario: primero la copia de GitHub; si falla, la que va con la web.
+async function dailyData(path) {
+  if (DATA_REMOTE) {
+    try { return await getJSON(DATA_REMOTE + path); } catch { /* sigue con la local */ }
   }
-  return getJSON(ONEPIECE_LOCAL + file);
+  return getJSON(DATA_LOCAL + path);
 }
+const onePieceData = (file) => dailyData("onepiece/" + file);
 
 // ---------- Juegos ----------
 // Cada juego sabe listar sus sets, cargar un set y (si hace falta) pedir el precio de una carta.
@@ -123,6 +124,7 @@ const GAMES = {
       };
     },
     price: null,   // los precios ya vienen en los datos del set
+    optimizer: (setId) => dailyData("cardtrader/onepiece/" + encodeURIComponent(setId) + ".json"),
   },
 };
 
@@ -223,6 +225,7 @@ async function openSet(g, id) {
   logo.onerror = () => { if (logo.src.includes("/es/")) logo.src = logo.src.replace("/es/", "/en/"); else logo.hidden = true; };
   if (data.logo) { logo.src = data.logo; logo.hidden = false; }
 
+  $("btn-opt").hidden = !game().optimizer;
   renderCards();
   if (game().price) loadPrices(token);
 }
@@ -385,6 +388,98 @@ function listAsCsv() {
   return rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\r\n");
 }
 
+// ---------- Optimizador de compra (CardTrader) ----------
+const countryName = (() => {
+  try { const dn = new Intl.DisplayNames(["es"], { type: "region" }); return (c) => (c ? dn.of(c) : "?"); }
+  catch { return (c) => c || "?"; }
+})();
+const cents = (c) => fmt(c / 100);
+const ctUrl = (bp) => `https://www.cardtrader.com/es/cards/${bp}`;
+
+async function openOptimizer() {
+  const body = $("opt-body");
+  body.innerHTML = `<p class="muted">Calculando la compra más barata…</p>`;
+  $("opt-drawer").hidden = false;
+  const missing = current.cards.filter((c) => !owned.has(c.id));
+  if (!missing.length) { body.innerHTML = `<p>¡No te falta ninguna carta de este set! 🎉</p>`; return; }
+
+  let data;
+  try { data = await game().optimizer(current.id); }
+  catch { body.innerHTML = `<p class="muted">Todavía no hay ofertas de CardTrader para este set. Se generan cada día de madrugada.</p>`; return; }
+
+  const ids = missing.map((c) => c.id);
+  const direct = Optimizer.optimizeDirect(ids, data);
+  const zero = Optimizer.optimizeZero(ids, data);
+  const byId = Object.fromEntries(current.cards.map((c) => [c.id, c]));
+  const cmRef = missing.reduce((s, c) => s + (prices[c.id]?.price ?? 0), 0);
+
+  const options = [
+    direct.ids.length && { key: "direct", label: "CardTrader · directo a vendedores", sum: direct.sum, items: direct.items, ship: direct.ship, n: direct.ids.length, envios: direct.per.size, miss: direct.missing.length },
+    zero.picks.length && { key: "zero", label: "CardTrader Zero · un solo envío", sum: zero.sum, items: zero.items, ship: zero.ship, n: zero.picks.length, envios: 1, miss: zero.missing.length },
+  ].filter(Boolean).sort((a, b) => a.sum - b.sum);
+
+  if (!options.length) { body.innerHTML = `<p class="muted">No hay ofertas en CardTrader (inglés, Near Mint) para las cartas que te faltan.</p>`; return; }
+  const best = options[0];
+
+  const row = (o, i) => `
+    <button class="opt-row${i === 0 ? " best" : ""}" data-show="${o.key}">
+      <div><b>${o.label}</b><small>${o.n} cartas · ${o.envios} envío${o.envios > 1 ? "s" : ""}${o.miss ? ` · ${o.miss} sin oferta` : ""}</small></div>
+      <div class="opt-sum">${cents(o.sum)}<small>${cents(o.items)} + ${cents(o.ship)} envío</small></div>
+    </button>`;
+
+  const directDetail = () => {
+    const groups = new Map();
+    direct.plan.forEach((k, i) => {
+      const [price, s] = direct.offersOf[i][k];
+      if (!groups.has(s)) groups.set(s, []);
+      groups.get(s).push({ card: byId[direct.ids[i]], price, bp: data.cards[direct.ids[i]].bp });
+    });
+    let n = 0;
+    return [...groups.entries()].sort((a, b) => b[1].length - a[1].length).map(([s, items]) => {
+      const seller = data.sellers[s];
+      const sub = items.reduce((t, x) => t + x.price, 0);
+      const ship = Optimizer.shippingCost(seller, items.length, sub);
+      return `<div class="opt-group">
+        <div class="opt-group-head"><b>Vendedor ${++n}</b> · ${escapeHtml(countryName(seller.c))}${seller.pro ? " · profesional" : ""}
+          <span>${items.length} carta${items.length > 1 ? "s" : ""} · envío ${ship ? cents(ship) : "gratis"}</span></div>
+        ${items.map((x) => itemRow(x.card, x.price, x.bp)).join("")}
+      </div>`;
+    }).join("");
+  };
+  const zeroDetail = () => `<div class="opt-group">
+      <div class="opt-group-head"><b>CardTrader Zero</b> · todo llega en un paquete desde su almacén <span>envío ${cents(data.zeroShipping)}</span></div>
+      ${zero.picks.map(([id, [price]]) => itemRow(byId[id], price, data.cards[id].bp)).join("")}
+    </div>`;
+  const itemRow = (c, price, bp) => `
+    <div class="opt-item"><span>${escapeHtml(c.name)}${c.parallel ? " <em>(paralela)</em>" : ""} <small>#${escapeHtml(c.code || c.n)}</small></span>
+      <span>${cents(price)} <a href="${ctUrl(bp)}" target="_blank" rel="noopener">ver ↗</a></span></div>`;
+
+  const noOffer = [...new Set([...direct.missing, ...zero.missing])].filter((id) => direct.missing.includes(id) && zero.missing.includes(id));
+  const saving = cmRef - best.sum / 100;
+
+  body.innerHTML = `
+    <div class="opt-hero">
+      <span>La compra más barata</span>
+      <b>${cents(best.sum)}</b>
+      <small>${best.label} · envíos incluidos</small>
+    </div>
+    <div class="opt-rows">${options.map(row).join("")}
+      <div class="opt-row ref"><div><b>Referencia Cardmarket</b><small>precio de tendencia, sin envíos</small></div><div class="opt-sum">${fmt(cmRef)}</div></div>
+    </div>
+    ${saving > 0.5 ? `<p class="opt-note good">Comprando así pagas ${fmt(saving)} menos que la suma de precios de tendencia de Cardmarket, y eso sin contar sus envíos.</p>` : ""}
+    ${noOffer.length ? `<p class="opt-note">${noOffer.length} carta(s) no tienen ofertas en CardTrader en inglés y Near Mint: ${noOffer.slice(0, 6).map((id) => escapeHtml(byId[id].name)).join(", ")}${noOffer.length > 6 ? "…" : ""}</p>` : ""}
+    <h3 class="opt-h">Detalle</h3>
+    <div id="opt-detail">${best.key === "direct" ? directDetail() : zeroDetail()}</div>
+    <p class="muted tiny">Ofertas de CardTrader del ${new Date(data.updated).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}: cartas en inglés, Near Mint o mejor, envío a España. Precios y existencias pueden haber cambiado; no incluye comisiones de pago. Para comprar, abre cada carta en CardTrader y elige la oferta del país indicado.</p>`;
+
+  body.querySelectorAll("[data-show]").forEach((b) => {
+    b.onclick = () => {
+      body.querySelectorAll("[data-show]").forEach((x) => x.classList.toggle("best", x === b));
+      $("opt-detail").innerHTML = b.dataset.show === "direct" ? directDetail() : zeroDetail();
+    };
+  });
+}
+
 function toast(msg) {
   const t = $("toast");
   t.textContent = msg;
@@ -443,8 +538,11 @@ $("btn-none").onclick = () => {
   owned.clear(); saveCollection(); renderCards();
 };
 $("btn-list").onclick = openDrawer;
-$("drawer").addEventListener("click", (e) => { if (e.target.closest("[data-close]")) $("drawer").hidden = true; });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("drawer").hidden = true; });
+$("btn-opt").onclick = openOptimizer;
+for (const d of ["drawer", "opt-drawer"]) {
+  $(d).addEventListener("click", (e) => { if (e.target.closest("[data-close]")) $(d).hidden = true; });
+}
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { $("drawer").hidden = true; $("opt-drawer").hidden = true; } });
 $("btn-copy").onclick = async () => {
   try { await navigator.clipboard.writeText(listAsText()); toast("Lista copiada"); }
   catch { toast("No se pudo copiar"); }
