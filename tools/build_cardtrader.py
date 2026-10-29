@@ -1,10 +1,14 @@
-"""Genera los datos del optimizador de compra (CardTrader) para One Piece.
+"""Genera los datos del optimizador de compra (CardTrader) para One Piece y Pokémon.
 
-Para cada set de Binder escribe landing/app/data/cardtrader/onepiece/<set>.json con:
-  - las ofertas más baratas de cada carta (Near Mint o mejor, en inglés, sin firmar ni alterar),
-  - los vendedores de esas ofertas (anónimos: solo país, si admiten CardTrader Zero y sus tarifas de envío a nuestro país).
+Escribe en landing/app/data/cardtrader/:
+  - sellers.json            vendedores anónimos (país, si admiten CardTrader Zero y sus tarifas de envío a nuestro país),
+                            comunes a todos los juegos para poder juntar cartas de varios juegos en un mismo envío;
+  - <juego>/<set>.json      las ofertas más baratas de cada carta de Binder (Near Mint o mejor, en inglés,
+                            versión normal, sin firmar ni alterar).
 
-Las cartas se emparejan por el ID de Cardmarket, que CardTrader incluye en cada blueprint.
+Las cartas se emparejan por el ID de Cardmarket, que CardTrader incluye en cada blueprint:
+  - One Piece: el ID viene en los datos de Binder (tools/build_onepiece.py);
+  - Pokémon: se pide a TCGdex carta a carta y se guarda en pokemon/_cm_ids.json para no repetirlo cada día.
 Precios y envíos son los que ve la cuenta dueña del token (comprador en España).
 
 Uso: CARDTRADER_TOKEN=... python -I tools/build_cardtrader.py
@@ -15,40 +19,31 @@ import re
 import sys
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 
 API = "https://api.cardtrader.com/api/v2"
+TCGDEX = "https://api.tcgdex.net/v2/es"
 TOKEN = os.environ.get("CARDTRADER_TOKEN", "").strip()
 ROOT = Path(__file__).resolve().parent.parent
-BINDER_DATA = ROOT / "landing" / "app" / "data" / "onepiece"
-OUT = ROOT / "landing" / "app" / "data" / "cardtrader" / "onepiece"
+DATA = ROOT / "landing" / "app" / "data"
+OUT = DATA / "cardtrader"
 
-ONE_PIECE = 15
+CT_GAME = {"onepiece": 15, "pokemon": 5}
+POKEMON_SERIES = ["sv", "me"]          # Escarlata y Púrpura + Megaevolución
 LANGUAGES = {"en"}
 CONDITIONS = {"Mint", "Near Mint"}
 OFFERS_PER_CARD = 8
 MAX_METHODS = 4
+# Expansiones de CardTrader en otros idiomas: no tienen cartas que vendan en inglés
+SKIP_EXPANSION = re.compile(r"japanese|korean|chinese|thai|indonesian|\bjp\b|\bkr\b|\bcn\b", re.I)
 # CardTrader Zero a España (hub → casa, Amazon Shipping hasta 5 kg). Fuente: cardtrader.com/es/shipping_methods/zero
 ZERO_SHIPPING_CENTS = 1490
-
-
-def get(path, **params):
-    url = API + path + ("?" + urllib.parse.urlencode(params) if params else "")
-    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {TOKEN}", "User-Agent": "Binder/0.1 (+https://binderapptcg.netlify.app)"})
-    for attempt in range(5):
-        try:
-            with urllib.request.urlopen(req, timeout=120) as r:
-                return json.loads(r.read().decode("utf-8"))
-        except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt < 4:
-                time.sleep(2 + attempt * 3)
-                continue
-            raise
+UA = "Binder/0.1 (+https://binderapptcg.netlify.app)"
 
 
 class RateLimiter:
@@ -66,17 +61,84 @@ class RateLimiter:
             time.sleep(delay)
 
 
+ct_limit = RateLimiter(per_second=15)       # límite de la API: 200 llamadas cada 10 s
+market_limit = RateLimiter(per_second=5)    # marketplace: máx. 10 por segundo
+
+
+def fetch(url, headers=None):
+    req = urllib.request.Request(url, headers={"User-Agent": UA, **(headers or {})})
+    for attempt in range(5):
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return json.loads(r.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 502, 503) and attempt < 4:
+                time.sleep(2 + attempt * 3)
+                continue
+            raise
+
+
+def ct(path, limiter=ct_limit, **params):
+    limiter.wait()
+    url = API + path + ("?" + urllib.parse.urlencode(params) if params else "")
+    return fetch(url, {"Authorization": f"Bearer {TOKEN}"})
+
+
+def pmap(fn, items, workers=8):
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        return list(pool.map(fn, items))
+
+
+# ---------- Cartas de Binder por juego: { set_id: { card_id: idProduct de Cardmarket } } ----------
+
+def onepiece_cards():
+    folder = DATA / "onepiece"
+    sets = json.loads((folder / "sets.json").read_text(encoding="utf-8"))["sets"]
+    out = {}
+    for s in sets:
+        data = json.loads((folder / f"{s['id']}.json").read_text(encoding="utf-8"))
+        out[s["id"]] = {c["id"]: c.get("idProduct") for c in data["cards"] if c.get("idProduct")}
+    return out
+
+
+def pokemon_cards():
+    cache_path = OUT / "pokemon" / "_cm_ids.json"
+    cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
+    set_ids = []
+    for serie in POKEMON_SERIES:
+        set_ids += [s["id"] for s in fetch(f"{TCGDEX}/series/{serie}").get("sets", [])]
+    sets = dict(zip(set_ids, pmap(lambda sid: fetch(f"{TCGDEX}/sets/{urllib.parse.quote(sid)}"), set_ids)))
+
+    todo = [c["id"] for s in sets.values() for c in s.get("cards", []) if not cache.get(c["id"])]
+    print(f"Pokémon: {len(sets)} sets, {len(todo)} cartas nuevas que buscar en TCGdex")
+
+    def cm_id(card_id):
+        try:
+            card = fetch(f"{TCGDEX}/cards/{urllib.parse.quote(card_id)}")
+            return card_id, (card.get("pricing") or {}).get("cardmarket", {}).get("idProduct")
+        except Exception:
+            return card_id, None
+    for card_id, cm in pmap(cm_id, todo, workers=8):
+        if cm:
+            cache[card_id] = cm
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_text(json.dumps(cache, separators=(",", ":"), sort_keys=True), encoding="utf-8")
+    return {sid: {c["id"]: cache[c["id"]] for c in s.get("cards", []) if cache.get(c["id"])} for sid, s in sets.items()}
+
+
+# ---------- Filtros y formato ----------
+
 def offer_ok(o):
     p = o.get("properties_hash") or {}
-    return (
-        not o.get("graded")
-        and not o.get("on_vacation")
-        and (o.get("quantity") or 0) > 0
-        and p.get("condition") in CONDITIONS
-        and p.get("onepiece_language", "en") in LANGUAGES
-        and not p.get("signed")
-        and not p.get("altered")
-    )
+    lang = next((v for k, v in p.items() if k.endswith("language")), "en")
+    if p.get("condition") not in CONDITIONS or lang not in LANGUAGES:
+        return False
+    if p.get("signed") or p.get("altered"):
+        return False
+    # Versión normal: fuera reverse holo y primeras ediciones
+    if any(v for k, v in p.items() if ("reverse" in k or "first_edition" in k) and v is True):
+        return False
+    return not o.get("graded") and not o.get("on_vacation") and (o.get("quantity") or 0) > 0
 
 
 def compact_methods(methods):
@@ -98,100 +160,115 @@ def compact_methods(methods):
     return out[:MAX_METHODS]
 
 
+# ---------- Proceso ----------
+
+def offers_for_game(game, binder_sets, expansions):
+    """Devuelve { set_id: { card_id: (blueprint, [ofertas]) } }."""
+    exps = [e for e in expansions if e.get("game_id") == CT_GAME[game] and not SKIP_EXPANSION.search(e.get("name") or "")]
+    wanted_cm = {cm for cards in binder_sets.values() for cm in cards.values()}
+
+    cm_to_bp, bp_exp = {}, {}
+
+    def blueprints(e):
+        try:
+            return e["id"], ct("/blueprints/export", expansion_id=e["id"])
+        except Exception:
+            return e["id"], []
+    for exp_id, bps in pmap(blueprints, exps):
+        for b in bps:
+            for cm in b.get("card_market_ids") or []:
+                if cm in wanted_cm:
+                    cm_to_bp.setdefault(cm, b["id"])
+                    bp_exp[b["id"]] = exp_id
+    print(f"{game}: {len(exps)} expansiones revisadas, {len(cm_to_bp)} de {len(wanted_cm)} cartas emparejadas")
+
+    needed = sorted(set(bp_exp.values()))
+    wanted_bp = set(cm_to_bp.values())
+    offers, sample_props = {}, None
+
+    def market(exp_id):
+        try:
+            return ct("/marketplace/products", limiter=market_limit, expansion_id=exp_id)
+        except Exception as e:
+            print("  ! marketplace", exp_id, e)
+            return {}
+    for result in pmap(market, needed, workers=4):
+        for bp, items in result.items():
+            bp = int(bp)
+            if bp not in wanted_bp:
+                continue
+            if sample_props is None and items:
+                sample_props = sorted(items[0].get("properties_hash", {}).keys())
+            offers[bp] = sorted((o for o in items if offer_ok(o)), key=lambda o: o["price"]["cents"])[:OFFERS_PER_CARD]
+    print(f"{game}: propiedades de ejemplo de una oferta: {sample_props}")
+    print(f"{game}: ofertas válidas para {sum(1 for v in offers.values() if v)} de {len(wanted_bp)} cartas")
+
+    return {sid: {cid: (cm_to_bp[cm], offers.get(cm_to_bp[cm], [])) for cid, cm in cards.items() if cm in cm_to_bp}
+            for sid, cards in binder_sets.items()}
+
+
 def main():
     if not TOKEN:
         print("Sin CARDTRADER_TOKEN: se omite CardTrader.")
         return
-    sets = json.loads((BINDER_DATA / "sets.json").read_text(encoding="utf-8"))["sets"]
+    expansions = ct("/expansions")
+    per_game = {
+        "onepiece": offers_for_game("onepiece", onepiece_cards(), expansions),
+        "pokemon": offers_for_game("pokemon", pokemon_cards(), expansions),
+    }
 
-    # 1) Blueprints de todas las expansiones de One Piece → mapa idProduct de Cardmarket → blueprint
-    expansions = [e for e in get("/expansions") if e.get("game_id") == ONE_PIECE]
-    cm_to_bp, bp_expansion = {}, {}
-    for e in expansions:
-        for b in get("/blueprints/export", expansion_id=e["id"]):
-            for cm in b.get("card_market_ids") or []:
-                cm_to_bp.setdefault(cm, b["id"])
-            bp_expansion[b["id"]] = e["id"]
-        time.sleep(0.05)
-    print(f"{len(expansions)} expansiones, {len(cm_to_bp)} IDs de Cardmarket emparejados")
-
-    # 2) Qué blueprints necesitamos y de qué expansiones
-    wanted = {}  # blueprint -> [binder card ids]
-    per_set = {}
-    for s in sets:
-        data = json.loads((BINDER_DATA / f"{s['id']}.json").read_text(encoding="utf-8"))
-        cards = {}
-        for c in data["cards"]:
-            bp = cm_to_bp.get(c.get("idProduct"))
-            if bp:
-                cards[c["id"]] = bp
-                wanted.setdefault(bp, []).append(c["id"])
-        per_set[s["id"]] = cards
-    exp_needed = sorted({bp_expansion[bp] for bp in wanted})
-
-    # 3) Ofertas del marketplace (una llamada por expansión, máx. 10/s)
-    offers = {}
-    for exp_id in exp_needed:
-        market = get("/marketplace/products", expansion_id=exp_id)
-        for bp, items in market.items():
-            bp = int(bp)
-            if bp not in wanted:
-                continue
-            good = sorted((o for o in items if offer_ok(o)), key=lambda o: o["price"]["cents"])
-            offers[bp] = good[:OFFERS_PER_CARD]
-        time.sleep(0.15)
-    print(f"Ofertas para {len(offers)} de {len(wanted)} cartas")
-
-    # 4) Métodos de envío de cada vendedor hacia nuestro país (máx. 200 llamadas / 10 s)
+    # Tarifas de envío de cada vendedor hacia nuestro país (una vez por vendedor, para todos los juegos)
     sellers = {}
-    for items in offers.values():
-        for o in items:
-            u = o["user"]
-            sellers.setdefault(u["id"], u)
+    for sets in per_game.values():
+        for cards in sets.values():
+            for _, items in cards.values():
+                for o in items:
+                    sellers.setdefault(o["user"]["id"], o["user"])
+
     def fetch_shipping(item):
         sid, u = item
-        limiter.wait()
         try:
-            return sid, compact_methods(get("/shipping_methods", username=u["username"]))
+            return sid, compact_methods(ct("/shipping_methods", username=u["username"]))
         except Exception:  # vendedor sin envíos a nuestro país, etc.
             return sid, []
-
-    limiter = RateLimiter(per_second=15)   # límite de la API: 200 llamadas cada 10 s
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        shipping = dict(pool.map(fetch_shipping, sellers.items()))
+    shipping = dict(pmap(fetch_shipping, list(sellers.items())))
     print(f"{len(sellers)} vendedores con tarifas de envío")
 
-    # 5) Vendedores anónimos en un archivo común (índice global) y un archivo de ofertas por set,
-    #    para que el carrito pueda combinar cartas de varios sets con los mismos vendedores.
-    OUT.mkdir(parents=True, exist_ok=True)
+    # Vendedores anónimos con índice global; un archivo de ofertas por juego y set
     now = datetime.now(timezone.utc).isoformat(timespec="minutes")
     idx, seller_list = {}, []
-    for set_id, cards in per_set.items():
-        out_offers = {}
-        for card_id, bp in cards.items():
-            rows = []
-            for o in offers.get(bp, []):
-                sid = o["user"]["id"]
-                if not shipping.get(sid) and not o["user"].get("can_sell_via_hub"):
-                    continue
-                if sid not in idx:
-                    idx[sid] = len(seller_list)
-                    u = sellers[sid]
-                    seller_list.append({
-                        "c": u.get("country_code"),
-                        "z": bool(u.get("can_sell_via_hub")),
-                        "pro": u.get("user_type") == "pro",
-                        "m": shipping.get(sid, []),
-                    })
-                rows.append([o["price"]["cents"], idx[sid], o.get("quantity") or 1])
-            if rows:
-                out_offers[card_id] = {"bp": bp, "o": rows}
-        payload = {"updated": now, "cards": out_offers}
-        (OUT / f"{set_id}.json").write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-        print(f"  {set_id:12} {len(out_offers):4} cartas con oferta")
+    for game, sets in per_game.items():
+        folder = OUT / game
+        folder.mkdir(parents=True, exist_ok=True)
+        for set_id, cards in sets.items():
+            out_offers = {}
+            for card_id, (bp, items) in cards.items():
+                rows = []
+                for o in items:
+                    sid = o["user"]["id"]
+                    if not shipping.get(sid) and not o["user"].get("can_sell_via_hub"):
+                        continue
+                    if sid not in idx:
+                        idx[sid] = len(seller_list)
+                        u = sellers[sid]
+                        seller_list.append({
+                            "c": u.get("country_code"),
+                            "z": bool(u.get("can_sell_via_hub")),
+                            "pro": u.get("user_type") == "pro",
+                            "m": shipping.get(sid, []),
+                        })
+                    rows.append([o["price"]["cents"], idx[sid], o.get("quantity") or 1])
+                if rows:
+                    out_offers[card_id] = {"bp": bp, "o": rows}
+            (folder / f"{set_id}.json").write_text(json.dumps({"updated": now, "cards": out_offers}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        print(f"{game}: {sum(1 for s in sets.values() for _ in s)} cartas en {len(sets)} sets")
+
     common = {"updated": now, "currency": "EUR", "zeroShipping": ZERO_SHIPPING_CENTS,
               "languages": sorted(LANGUAGES), "sellers": seller_list}
     (OUT / "sellers.json").write_text(json.dumps(common, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    old = OUT / "onepiece" / "sellers.json"   # formato anterior
+    if old.exists():
+        old.unlink()
     print(f"{len(seller_list)} vendedores en sellers.json")
 
 
@@ -199,4 +276,4 @@ if __name__ == "__main__":
     try:
         main()
     except urllib.error.HTTPError as e:
-        sys.exit(f"Error de la API de CardTrader: {e.code} {e.reason}")
+        sys.exit(f"Error de la API: {e.code} {e.reason} ({e.url})")
