@@ -106,7 +106,6 @@ def main():
 
     # 1) Blueprints de todas las expansiones de One Piece → mapa idProduct de Cardmarket → blueprint
     expansions = [e for e in get("/expansions") if e.get("game_id") == ONE_PIECE]
-    expansions = [e for e in expansions if re.match(r"^(op|eb|prb|st)\d", e["code"] or "")]
     cm_to_bp, bp_expansion = {}, {}
     for e in expansions:
         for b in get("/blueprints/export", expansion_id=e["id"]):
@@ -162,11 +161,13 @@ def main():
         shipping = dict(pool.map(fetch_shipping, sellers.items()))
     print(f"{len(sellers)} vendedores con tarifas de envío")
 
-    # 5) Un archivo por set, con vendedores anónimos (índice local)
+    # 5) Vendedores anónimos en un archivo común (índice global) y un archivo de ofertas por set,
+    #    para que el carrito pueda combinar cartas de varios sets con los mismos vendedores.
     OUT.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc).isoformat(timespec="minutes")
+    idx, seller_list = {}, []
     for set_id, cards in per_set.items():
-        idx, seller_list, out_offers = {}, [], {}
+        out_offers = {}
         for card_id, bp in cards.items():
             rows = []
             for o in offers.get(bp, []):
@@ -185,10 +186,13 @@ def main():
                 rows.append([o["price"]["cents"], idx[sid], o.get("quantity") or 1])
             if rows:
                 out_offers[card_id] = {"bp": bp, "o": rows}
-        payload = {"updated": now, "currency": "EUR", "zeroShipping": ZERO_SHIPPING_CENTS,
-                   "languages": sorted(LANGUAGES), "sellers": seller_list, "cards": out_offers}
+        payload = {"updated": now, "cards": out_offers}
         (OUT / f"{set_id}.json").write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-        print(f"  {set_id:12} {len(out_offers):4} cartas con oferta, {len(seller_list):4} vendedores")
+        print(f"  {set_id:12} {len(out_offers):4} cartas con oferta")
+    common = {"updated": now, "currency": "EUR", "zeroShipping": ZERO_SHIPPING_CENTS,
+              "languages": sorted(LANGUAGES), "sellers": seller_list}
+    (OUT / "sellers.json").write_text(json.dumps(common, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    print(f"{len(seller_list)} vendedores en sellers.json")
 
 
 if __name__ == "__main__":
