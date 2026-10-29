@@ -29,6 +29,11 @@ jobs:
       - name: Generar datos de One Piece
         run: python -I tools/build_onepiece.py
 
+      - name: Ofertas y envíos de CardTrader (optimizador)
+        env:
+          CARDTRADER_TOKEN: ${{ secrets.CARDTRADER_TOKEN }}
+        run: python -I tools/build_cardtrader.py
+
       - name: Guardar cambios
         run: |
           git config user.name "github-actions[bot]"
