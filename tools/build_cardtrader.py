@@ -3,8 +3,8 @@
 Escribe en landing/app/data/cardtrader/:
   - sellers.json            vendedores anónimos (país, si admiten CardTrader Zero y sus tarifas de envío a nuestro país),
                             comunes a todos los juegos para poder juntar cartas de varios juegos en un mismo envío;
-  - <juego>/<set>.json      las ofertas más baratas de cada carta de Binder (Near Mint o mejor, en inglés,
-                            versión normal, sin firmar ni alterar).
+  - <juego>/<set>.json      las ofertas más baratas de cada carta de Binder en cada idioma
+                            (Near Mint o mejor, versión normal, sin firmar ni alterar).
 
 Las cartas se emparejan por el ID de Cardmarket, que CardTrader incluye en cada blueprint:
   - One Piece: el ID viene en los datos de Binder (tools/build_onepiece.py);
@@ -35,9 +35,10 @@ OUT = DATA / "cardtrader"
 
 CT_GAME = {"onepiece": 15, "pokemon": 5}
 POKEMON_SERIES = ["sv", "me"]          # Escarlata y Púrpura + Megaevolución
-LANGUAGES = {"en"}
+# Idiomas que guardamos por juego (códigos de CardTrader)
+LANGUAGES = {"pokemon": ["es", "en", "fr", "de", "it", "pt", "jp"], "onepiece": ["en", "jp", "fr"]}
 CONDITIONS = {"Mint", "Near Mint"}
-OFFERS_PER_CARD = 8
+OFFERS_PER_LANG = 5
 MAX_METHODS = 4
 # Expansiones de CardTrader en otros idiomas: no tienen cartas que vendan en inglés
 SKIP_EXPANSION = re.compile(r"japanese|korean|chinese|thai|indonesian|\bjp\b|\bkr\b|\bcn\b", re.I)
@@ -110,7 +111,7 @@ def pokemon_cards():
     sets = dict(zip(set_ids, pmap(lambda sid: fetch(f"{TCGDEX}/sets/{urllib.parse.quote(sid)}"), set_ids)))
 
     todo = [c["id"] for s in sets.values() for c in s.get("cards", []) if not cache.get(c["id"])]
-    print(f"Pokémon: {len(sets)} sets, {len(todo)} cartas nuevas que buscar en TCGdex")
+    print(f"Pokémon: {len(sets)} sets, {len(todo)} cartas nuevas que buscar en TCGdex", flush=True)
 
     def cm_id(card_id):
         try:
@@ -118,7 +119,7 @@ def pokemon_cards():
             return card_id, (card.get("pricing") or {}).get("cardmarket", {}).get("idProduct")
         except Exception:
             return card_id, None
-    for card_id, cm in pmap(cm_id, todo, workers=8):
+    for card_id, cm in pmap(cm_id, todo, workers=16):
         if cm:
             cache[card_id] = cm
     cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -128,10 +129,14 @@ def pokemon_cards():
 
 # ---------- Filtros y formato ----------
 
+def offer_lang(o):
+    p = o.get("properties_hash") or {}
+    return next((v for k, v in p.items() if k.endswith("language")), "en")
+
+
 def offer_ok(o):
     p = o.get("properties_hash") or {}
-    lang = next((v for k, v in p.items() if k.endswith("language")), "en")
-    if p.get("condition") not in CONDITIONS or lang not in LANGUAGES:
+    if p.get("condition") not in CONDITIONS:
         return False
     if p.get("signed") or p.get("altered"):
         return False
@@ -183,8 +188,9 @@ def offers_for_game(game, binder_sets, expansions):
     print(f"{game}: {len(exps)} expansiones revisadas, {len(cm_to_bp)} de {len(wanted_cm)} cartas emparejadas")
 
     needed = sorted(set(bp_exp.values()))
+    print(f"{game}: descargando ofertas de {len(needed)} expansiones…", flush=True)
     wanted_bp = set(cm_to_bp.values())
-    offers, sample_props = {}, None
+    offers, sample_props, langs_seen = {}, None, {}
 
     def market(exp_id):
         try:
@@ -199,11 +205,18 @@ def offers_for_game(game, binder_sets, expansions):
                 continue
             if sample_props is None and items:
                 sample_props = sorted(items[0].get("properties_hash", {}).keys())
-            offers[bp] = sorted((o for o in items if offer_ok(o)), key=lambda o: o["price"]["cents"])[:OFFERS_PER_CARD]
+            by_lang = {}
+            for o in sorted((o for o in items if offer_ok(o)), key=lambda o: o["price"]["cents"]):
+                lang = offer_lang(o)
+                langs_seen[lang] = langs_seen.get(lang, 0) + 1
+                if lang in LANGUAGES[game] and len(by_lang.setdefault(lang, [])) < OFFERS_PER_LANG:
+                    by_lang[lang].append(o)
+            offers[bp] = by_lang
     print(f"{game}: propiedades de ejemplo de una oferta: {sample_props}")
+    print(f"{game}: idiomas vistos en las ofertas: {dict(sorted(langs_seen.items(), key=lambda x: -x[1]))}")
     print(f"{game}: ofertas válidas para {sum(1 for v in offers.values() if v)} de {len(wanted_bp)} cartas")
 
-    return {sid: {cid: (cm_to_bp[cm], offers.get(cm_to_bp[cm], [])) for cid, cm in cards.items() if cm in cm_to_bp}
+    return {sid: {cid: (cm_to_bp[cm], offers.get(cm_to_bp[cm], {})) for cid, cm in cards.items() if cm in cm_to_bp}
             for sid, cards in binder_sets.items()}
 
 
@@ -221,9 +234,10 @@ def main():
     sellers = {}
     for sets in per_game.values():
         for cards in sets.values():
-            for _, items in cards.values():
-                for o in items:
-                    sellers.setdefault(o["user"]["id"], o["user"])
+            for _, by_lang in cards.values():
+                for items in by_lang.values():
+                    for o in items:
+                        sellers.setdefault(o["user"]["id"], o["user"])
 
     def fetch_shipping(item):
         sid, u = item
@@ -231,6 +245,7 @@ def main():
             return sid, compact_methods(ct("/shipping_methods", username=u["username"]))
         except Exception:  # vendedor sin envíos a nuestro país, etc.
             return sid, []
+    print(f"Descargando tarifas de envío de {len(sellers)} vendedores…", flush=True)
     shipping = dict(pmap(fetch_shipping, list(sellers.items())))
     print(f"{len(sellers)} vendedores con tarifas de envío")
 
@@ -242,29 +257,33 @@ def main():
         folder.mkdir(parents=True, exist_ok=True)
         for set_id, cards in sets.items():
             out_offers = {}
-            for card_id, (bp, items) in cards.items():
-                rows = []
-                for o in items:
-                    sid = o["user"]["id"]
-                    if not shipping.get(sid) and not o["user"].get("can_sell_via_hub"):
-                        continue
-                    if sid not in idx:
-                        idx[sid] = len(seller_list)
-                        u = sellers[sid]
-                        seller_list.append({
-                            "c": u.get("country_code"),
-                            "z": bool(u.get("can_sell_via_hub")),
-                            "pro": u.get("user_type") == "pro",
-                            "m": shipping.get(sid, []),
-                        })
-                    rows.append([o["price"]["cents"], idx[sid], o.get("quantity") or 1])
-                if rows:
-                    out_offers[card_id] = {"bp": bp, "o": rows}
+            for card_id, (bp, by_lang) in cards.items():
+                rows_by_lang = {}
+                for lang, items in by_lang.items():
+                    rows = []
+                    for o in items:
+                        sid = o["user"]["id"]
+                        if not shipping.get(sid) and not o["user"].get("can_sell_via_hub"):
+                            continue
+                        if sid not in idx:
+                            idx[sid] = len(seller_list)
+                            u = sellers[sid]
+                            seller_list.append({
+                                "c": u.get("country_code"),
+                                "z": bool(u.get("can_sell_via_hub")),
+                                "pro": u.get("user_type") == "pro",
+                                "m": shipping.get(sid, []),
+                            })
+                        rows.append([o["price"]["cents"], idx[sid], o.get("quantity") or 1])
+                    if rows:
+                        rows_by_lang[lang] = rows
+                # bp siempre, aunque no haya ofertas: sirve para enlazar la carta en CardTrader
+                out_offers[card_id] = {"bp": bp, "o": rows_by_lang}
             (folder / f"{set_id}.json").write_text(json.dumps({"updated": now, "cards": out_offers}, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
         print(f"{game}: {sum(1 for s in sets.values() for _ in s)} cartas en {len(sets)} sets")
 
     common = {"updated": now, "currency": "EUR", "zeroShipping": ZERO_SHIPPING_CENTS,
-              "languages": sorted(LANGUAGES), "sellers": seller_list}
+              "languages": LANGUAGES, "sellers": seller_list}
     (OUT / "sellers.json").write_text(json.dumps(common, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     old = OUT / "onepiece" / "sellers.json"   # formato anterior
     if old.exists():

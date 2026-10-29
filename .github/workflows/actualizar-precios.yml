@@ -18,7 +18,7 @@ concurrency:
 jobs:
   onepiece:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
 
@@ -32,7 +32,7 @@ jobs:
       - name: Ofertas y envíos de CardTrader (optimizador)
         env:
           CARDTRADER_TOKEN: ${{ secrets.CARDTRADER_TOKEN }}
-        run: python -I tools/build_cardtrader.py
+        run: python -I -u tools/build_cardtrader.py
 
       - name: Guardar cambios
         run: |
