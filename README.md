@@ -2,6 +2,8 @@
 
 Web para coleccionistas de TCG: marca las cartas que tienes, mira cuánto cuesta completar cada set y exporta tu lista de faltantes.
 
+🌐 https://binderapptcg.netlify.app · App: https://binderapptcg.netlify.app/app/
+
 - `landing/` — la web publicada (landing + app en `landing/app/`). Se sube a Netlify.
 - `landing/app/data/onepiece/` — datos y precios de One Piece, regenerados cada día.
 - `tools/build_onepiece.py` — script que genera esos datos (optcgapi.com + precios públicos de Cardmarket).

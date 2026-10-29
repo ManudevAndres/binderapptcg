@@ -27,7 +27,7 @@ CODE_RE = re.compile(r"\(([A-Z]{1,4}\d{0,2}-\d{3})\)")
 
 
 def fetch_json(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "Binder/0.1 (+https://comfy-selkie-06781b.netlify.app)"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Binder/0.1 (+https://binderapptcg.netlify.app)"})
     with urllib.request.urlopen(req, timeout=120) as r:
         return json.loads(r.read().decode("utf-8"))
 
