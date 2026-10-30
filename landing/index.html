@@ -282,8 +282,7 @@
         <h2>¿Qué juego quieres después?</h2>
         <p>Déjanos tu email y te avisamos de las novedades. Tu voto decide qué añadimos primero.</p>
       </div>
-      <form id="waitlist" name="waitlist" method="POST" data-netlify="true" netlify-honeypot="web" novalidate>
-        <input type="hidden" name="form-name" value="waitlist">
+      <form id="waitlist" novalidate>
         <p hidden><label>No rellenar: <input name="web"></label></p>
         <div>
           <label for="email">Tu email</label>
@@ -370,7 +369,10 @@
     });
   }
 
-  // Formulario: en local va en modo demo; publicado en Netlify lo recoge Netlify Forms
+  // Formulario: en local va en modo demo; publicado se guarda en Supabase (tabla novedades).
+  // La clave es pública por diseño: la tabla solo permite añadir filas, no leerlas.
+  const SUPABASE_URL = "https://osaysgrdmdtpepgnruzd.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_BdAC27xK56aqhwzyyOcGAQ_hQSRIuAi";
   const DEMO = ["localhost", "127.0.0.1", ""].includes(location.hostname);
   const form = document.getElementById("waitlist");
   const msg = document.getElementById("msg");
@@ -384,13 +386,18 @@
       return;
     }
     const joined = (name) => [...form.querySelectorAll(`[name=${name}]:checked`)].map((x) => x.value).join(", ");
-    const data = { "form-name": "waitlist", web: form.web.value, email, perfil: joined("perfil"), juego: joined("juego") };
+    const data = { email, perfil: joined("perfil"), juego: joined("juego") };
     const btn = form.querySelector("button");
     btn.disabled = true;
     try {
-      if (DEMO) console.info("[modo demo] Datos del formulario:", data);
+      if (form.web.value) { /* trampa para bots: no se guarda */ }
+      else if (DEMO) console.info("[modo demo] Datos del formulario:", data);
       else {
-        const res = await fetch("/", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(data).toString() });
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/novedades`, {
+          method: "POST",
+          headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json", Prefer: "return=minimal" },
+          body: JSON.stringify(data),
+        });
         if (!res.ok) throw new Error(res.status);
       }
       form.reset();
