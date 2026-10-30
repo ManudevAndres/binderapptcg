@@ -45,6 +45,7 @@ SKIP_EXPANSION = re.compile(r"japanese|korean|chinese|thai|indonesian|\bjp\b|\bk
 # CardTrader Zero a España (hub → casa, Amazon Shipping hasta 5 kg). Fuente: cardtrader.com/es/shipping_methods/zero
 ZERO_SHIPPING_CENTS = 1490
 UA = "Binder/0.1 (+https://binderapptcg.netlify.app)"
+BP_IMAGE = {}   # blueprint -> ruta de su imagen en CardTrader
 
 
 class RateLimiter:
@@ -190,6 +191,7 @@ def offers_for_game(game, binder_sets, expansions):
             return e["id"], []
     for exp_id, bps in pmap(blueprints, exps):
         for b in bps:
+            BP_IMAGE[b["id"]] = (b.get("image") or {}).get("url")
             for cm in b.get("card_market_ids") or []:
                 if cm in wanted_cm:
                     cm_to_bp.setdefault(cm, b["id"])
@@ -316,6 +318,16 @@ def main():
     if old.exists():
         old.unlink()
     print(f"{len(seller_list)} vendedores en sellers.json")
+
+    # One Piece: imagen limpia de CardTrader en los datos del set (las de optcgapi llevan la marca "SAMPLE")
+    for set_id, cards in per_game["onepiece"].items():
+        path = DATA / "onepiece" / f"{set_id}.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        for c in data["cards"]:
+            bp = cards.get(c["id"], (None,))[0]
+            if BP_IMAGE.get(bp):
+                c["ctimg"] = BP_IMAGE[bp]
+        path.write_text(json.dumps(data, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
 
 
 if __name__ == "__main__":
