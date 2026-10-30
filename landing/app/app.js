@@ -31,8 +31,8 @@ function toast(msg) {
 
 function priceLabel(p) {
   if (p === undefined) return `<span class="price">…</span>`;
-  if (!p || p.price == null) return `<span class="price">sin precio</span>`;
-  return `<span class="price${p.price >= 20 ? " hot" : ""}">${fmt(p.price)}</span>`;
+  if (!p || p.price == null) return `<span class="price none">–</span>`;
+  return `<span class="price">${fmt(p.price)}</span>`;
 }
 
 const langName = (l) => LANG_NAMES[l] || l;
@@ -74,7 +74,7 @@ async function ensureMeta(ids) {
   const bySet = new Map();
   for (const id of ids) {
     const m = State.data.meta[id];
-    if (m?.name && m?.img !== undefined) continue;
+    if (m?.name && m?.img !== undefined && !m.img?.includes("optcgapi")) continue;
     const { g, set } = fromMeta(id);
     if (!set.id) continue;
     const k = g + "|" + set.id;
@@ -140,13 +140,12 @@ function cardTile(card, g, set, { mode = "toggle", sub = null } = {}) {
       <span class="flag" title="${has ? langName(State.ownedLang(card.id)) : ""}">${has ? flag(State.ownedLang(card.id)) : ""}</span>
       ${card.parallel ? `<span class="tag">Paralela</span>` : ""}
       <div class="c-tools">
-        <button class="tool" data-act="zoom" aria-label="Ver en grande" title="Ver en grande">🔍</button>
-        <button class="tool${inCart ? " on" : ""}" data-act="cart" aria-label="Añadir al carrito" title="Añadir al carrito">🛒${inCart ? `<b>${inCart}</b>` : ""}</button>
+        <button class="tool" data-act="zoom" aria-label="Ver en grande" title="Ver en grande">${ic("zoom")}</button>
+        <button class="tool${inCart ? " on" : ""}" data-act="cart" aria-label="Añadir al carrito" title="Añadir al carrito">${ic("cart")}${inCart ? `<b>${inCart}</b>` : ""}</button>
       </div>
     </div>
-    <div class="meta"><span class="name">${escapeHtml(card.name)}</span><span class="num">#${escapeHtml(card.code || card.n)}</span></div>
-    ${sub ? `<div class="sub">${escapeHtml(sub)}</div>` : ""}
-    ${priceLabel(prices.get(card.id))}`;
+    <div class="meta" title="${escapeHtml(card.name)}">${escapeHtml(card.name)}</div>
+    <div class="line"><span class="num">${escapeHtml(sub || "#" + (card.code || card.n))}</span>${priceLabel(prices.get(card.id))}</div>`;
   const img = el.querySelector("img");
   if (img) img.onerror = () => {
     if (img.dataset.fallback) { img.src = img.dataset.fallback; img.dataset.fallback = ""; }
@@ -167,7 +166,7 @@ function refreshTile(id) {
     const qty = State.cartQty(id);
     const cartBtn = el.querySelector('[data-act="cart"]');
     cartBtn.classList.toggle("on", qty > 0);
-    cartBtn.innerHTML = "🛒" + (qty ? `<b>${qty}</b>` : "");
+    cartBtn.innerHTML = ic("cart") + (qty ? `<b>${qty}</b>` : "");
     const p = el.querySelector(".price");
     if (p) p.outerHTML = priceLabel(prices.get(id));
   });
@@ -224,7 +223,7 @@ function renderModal() {
   $("cm-name").textContent = card.name;
   const p = prices.get(card.id);
   $("cm-price").innerHTML = p?.price != null
-    ? `${fmt(p.price)} <small>tendencia Cardmarket (todos los idiomas)</small>`
+    ? `${fmt(p.price)} <small>Tendencia en Cardmarket, todos los idiomas</small>`
     : `<small>Precio no disponible</small>`;
   if (!prices.has(card.id)) loadPricesFor([card.id], () => { if (modalId === card.id) renderModal(); });
 
@@ -244,7 +243,7 @@ function renderModal() {
     const addBtn = $("cm-ct-add");
     addBtn.hidden = !ct?.bp;
     addBtn.dataset.bp = ct?.bp || "";
-    addBtn.innerHTML = `⚡ Añadir a mi carrito de CardTrader ${flag(lang)}`;
+    addBtn.innerHTML = `${ic("bolt")}Añadir a mi carrito de CardTrader ${flag(lang)}`;
   });
 
   const has = State.has(card.id);
@@ -252,17 +251,17 @@ function renderModal() {
   $("cm-owned").innerHTML = !has ? `Marcar que la tengo ${flag(lang)}` : ownLang === lang ? `✓ La tengo ${flag(lang)}` : `La tengo ${flag(ownLang)} · cambiar a ${flag(lang)}`;
   $("cm-owned").classList.toggle("on", has && ownLang === lang);
   const qty = State.cartQty(card.id, lang);
-  $("cm-cart").innerHTML = qty ? `🛒 En el carrito (${qty}) ${flag(lang)} · añadir otra` : `🛒 Añadir al carrito ${flag(lang)}`;
+  $("cm-cart").innerHTML = `${ic("cart")}${qty ? `En el carrito (${qty}) · añadir otra` : "Añadir al carrito"} ${flag(lang)}`;
 
   renderModalAlert(card, lang);
 
   const lists = State.data.lists;
   $("cm-lists").innerHTML = lists.map((l) =>
     `<button class="chip-btn${State.inList(l.id, card.id) ? " on" : ""}" data-list="${l.id}">${State.inList(l.id, card.id) ? "✓ " : "+ "}${escapeHtml(l.name)}</button>`
-  ).join("") + `<button class="chip-btn new" data-list="__new">+ Nueva lista</button>`;
+  ).join("") + `<button class="chip-btn new" data-list="__new" type="button">+ Nueva lista</button>`;
 
   const q = encodeURIComponent(`${card.name} ${card.code || card.n} ${set.name || ""}`.trim());
-  const links = (bp) => `<span class="ml-title">Comprar ${flag(lang)}</span>
+  const links = (bp) => `<span class="ml-title">Comprar en</span>
     <a href="${cardmarketUrl(card, g, lang)}" target="_blank" rel="noopener">Cardmarket ↗</a>`
     + (bp ? `<a href="${cardTraderUrl(bp)}" target="_blank" rel="noopener">CardTrader ↗</a>` : "")
     + `<a href="https://www.ebay.es/sch/i.html?_nkw=${q}" target="_blank" rel="noopener">eBay ↗</a>`
@@ -325,7 +324,7 @@ $("cm-ct-add").onclick = async () => {
     toast(e.message);
   } finally {
     btn.disabled = false;
-    btn.innerHTML = `⚡ Añadir a mi carrito de CardTrader ${flag(lang)}`;
+    btn.innerHTML = `${ic("bolt")}Añadir a mi carrito de CardTrader ${flag(lang)}`;
   }
 };
 $("cm-langs").onclick = (e) => {
@@ -338,11 +337,19 @@ $("cm-lists").onclick = (e) => {
   const { card, g, set } = modalContext();
   let id = b.dataset.list;
   if (id === "__new") {
-    const name = prompt("Nombre de la nueva lista");
-    if (!name || !name.trim()) return;
-    id = State.createList(name).id;
+    $("cm-newlist").hidden = false;
+    $("cm-newlist-name").focus();
+    return;
   }
   State.toggleInList(id, card, g, set);
+  renderModal();
+};
+$("cm-newlist").onsubmit = (e) => {
+  e.preventDefault();
+  const { card, g, set } = modalContext();
+  State.toggleInList(State.createList($("cm-newlist-name").value).id, card, g, set);
+  $("cm-newlist-name").value = "";
+  $("cm-newlist").hidden = true;
   renderModal();
 };
 $("cm-img").onclick = (e) => { if (e.target.tagName === "IMG") e.target.classList.toggle("zoomed"); };
@@ -356,7 +363,7 @@ async function showSets(id) {
   store.set("game", id);
   current = null;
   document.querySelectorAll("#game-tabs button").forEach((b) => b.classList.toggle("on", b.dataset.game === id));
-  $("intro-title").textContent = `Elige un set de ${game().name}`;
+  $("intro-title").textContent = `Sets de ${game().name}`;
   $("all-sets").innerHTML = `<p class="muted">Cargando sets…</p>`;
   try {
     const sets = await game().sets();
@@ -491,7 +498,7 @@ function updateSetStats() {
   const when = game().pricesDate ? ` (${new Date(game().pricesDate).toLocaleDateString("es-ES")})` : ", actualizados a diario";
   $("price-status").textContent = loading
     ? `Cargando precios de Cardmarket… ${loaded} / ${total}`
-    : `Precios de tendencia de Cardmarket${when}.${noPrice ? ` ${noPrice} carta(s) que te faltan no tienen precio y no cuentan en el total.` : ""}`;
+    : `Precios de tendencia de Cardmarket${when}.${noPrice ? ` ${noPrice} sin precio, no cuentan en el total.` : ""}`;
 }
 
 async function loadSetPrices(token) {
@@ -524,7 +531,7 @@ function openDrawer() {
   const total = list.reduce((s, c) => s + (c.price ?? 0), 0);
   $("drawer-sum").textContent = list.length
     ? `${list.length} cartas · ${fmt(total)} en total (precio de tendencia)`
-    : "¡No te falta ninguna carta de este set! 🎉";
+    : "No te falta ninguna carta de este set.";
   $("miss-list").innerHTML = list.map((c) => `
     <li>
       ${c.img ? `<img loading="lazy" src="${c.img}" alt="">` : ""}
@@ -631,8 +638,12 @@ function renderPortfolio(ids, record) {
     return `<li data-id="${escapeHtml(m.id)}"><button class="mv" data-open="${escapeHtml(m.id)}">${card.img ? `<img src="${card.img}" alt="">` : ""}<span>${escapeHtml(card.name)}</span>
       <b class="${m.pct >= 0 ? "up" : "down"}">${pct(m.pct)}</b><small>${fmt(prices.get(m.id).price)}</small></button></li>`;
   };
-  $("col-up").innerHTML = s.up.map(row).join("") || `<li class="muted tiny">Nada sube más de un 2 % ahora mismo.</li>`;
-  $("col-down").innerHTML = s.down.map(row).join("") || `<li class="muted tiny">Nada baja más de un 2 % ahora mismo.</li>`;
+  $("col-up").innerHTML = s.up.map(row).join("");
+  $("col-down").innerHTML = s.down.map(row).join("");
+  $("col-up-box").hidden = !s.up.length;
+  $("col-down-box").hidden = !s.down.length;
+  $("pf-movers").hidden = !s.up.length && !s.down.length;
+  $("portfolio").classList.toggle("solo", $("pf-movers").hidden);
 }
 
 function renderCollection(record = false) {
@@ -680,7 +691,7 @@ async function checkAlerts() {
     if (now && now.price <= a.below) {
       State.markAlert(a.id, now.price);
       const name = State.data.meta[a.card]?.name || a.card;
-      toast(`🔔 ${name} ha bajado a ${fmt(now.price)}`);
+      toast(`${name} ha bajado a ${fmt(now.price)}`);
       try { if (window.Notification?.permission === "granted") new Notification("Binder · alerta de precio", { body: `${name} (${langName(a.l)}) está a ${fmt(now.price)} en ${now.source}` }); }
       catch { /* sin notificaciones */ }
     }
@@ -691,9 +702,9 @@ async function checkAlerts() {
 async function showAlerts() {
   const box = $("alert-list");
   const alerts = State.data.alerts;
-  $("btn-notify").hidden = !window.Notification || Notification.permission === "granted";
+  $("btn-notify").hidden = !alerts.length || !window.Notification || Notification.permission !== "default";
   if (!alerts.length) {
-    box.innerHTML = emptyState("No tienes alertas.", "Abre una carta con la lupa 🔍 y pon el precio al que quieres comprarla.", "#/explorar", "Explorar sets");
+    box.innerHTML = emptyState("No tienes alertas.", "Abre cualquier carta y pon el precio al que quieres comprarla: te avisamos cuando baje.", "#/explorar", "Explorar sets");
     return;
   }
   await ensureMeta(alerts.map((a) => a.card));
@@ -706,8 +717,8 @@ async function showAlerts() {
         <small>Avisar por debajo de <b>${fmt(a.below)}</b> · ahora <span data-now>…</span></small>
         ${a.hit ? `<small class="up">✓ Bajó a ${fmt(a.hit.price)} el ${new Date(a.hit.at).toLocaleDateString("es-ES")}</small>` : ""}</div>
       <div class="alert-actions">
-        ${a.hit ? `<button class="btn small" data-buy>🛒 Al carrito</button><button class="btn-ghost small" data-reset>Volver a vigilar</button>` : ""}
-        <button class="icon-btn" data-del aria-label="Borrar alerta">✕</button>
+        ${a.hit ? `<button class="btn small" data-buy>${ic("cart")}Al carrito</button><button class="btn-ghost small" data-reset>Volver a vigilar</button>` : ""}
+        <button class="icon-btn" data-del aria-label="Borrar alerta">${ic("x")}</button>
       </div>
     </div>`;
   }).join("");
@@ -743,7 +754,8 @@ $("btn-notify").onclick = async () => {
 async function renderModalAlert(card, lang) {
   const a = State.alertFor(card.id, lang);
   const input = $("cm-alert-price");
-  $("cm-alert-btn").textContent = a ? "Cambiar alerta" : "Crear alerta";
+  if (a) $("cm-alert-box").open = true;
+  $("cm-alert-btn").textContent = a ? "Cambiar" : "Crear";
   $("cm-alert-msg").textContent = a ? (a.hit ? `✓ Alerta cumplida: bajó a ${fmt(a.hit.price)}` : `Alerta activa: te avisamos si baja de ${fmt(a.below)}.`) : "";
   if (a) { input.value = a.below; return; }
   input.value = "";
@@ -769,7 +781,7 @@ function emptyState(title, text, href, label) {
 function showLists() {
   const box = $("lists");
   const lists = State.data.lists;
-  box.innerHTML = lists.length ? "" : `<p class="muted">Todavía no tienes listas. Crea una arriba y añade cartas desde la lupa 🔍 de cualquier carta.</p>`;
+  box.innerHTML = lists.length ? "" : emptyState("Todavía no tienes listas.", "Crea una arriba y añade cartas desde la ficha de cualquier carta.", "#/explorar", "Explorar sets");
   for (const l of lists) {
     const have = l.cards.filter((id) => State.has(id)).length;
     const a = document.createElement("a");
@@ -777,7 +789,7 @@ function showLists() {
     a.href = "#/lista/" + l.id;
     const thumbs = l.cards.slice(0, 4).map((id) => State.data.meta[id]?.img).filter(Boolean);
     a.innerHTML = `
-      <div class="thumbs">${thumbs.map((src) => `<img loading="lazy" src="${src}" alt="">`).join("") || `<span class="fallback">⭐</span>`}</div>
+      <div class="thumbs">${thumbs.map((src) => `<img loading="lazy" src="${src}" alt="">`).join("") || ic("bookmark")}</div>
       <b>${escapeHtml(l.name)}</b>
       <small>${l.cards.length} cartas · tengo ${have}</small>
       ${l.cards.length ? `<div class="progress"><i style="width:${(have / l.cards.length) * 100}%"></i></div>` : ""}`;
@@ -811,7 +823,7 @@ function renderList() {
     const x = fromMeta(id);
     grid.appendChild(cardTile(x.card, x.g, x.set, { mode: "open", sub: x.set.name }));
   }
-  if (!l.cards.length) grid.innerHTML = emptyState("Esta lista está vacía.", "Abre cualquier carta con la lupa 🔍 y pulsa el nombre de esta lista para añadirla.", "#/explorar", "Explorar sets");
+  if (!l.cards.length) grid.innerHTML = emptyState("Esta lista está vacía.", "Abre cualquier carta y añádela desde «Añadir a una lista».", "#/explorar", "Explorar sets");
 }
 
 // ---------- Carrito ----------
@@ -838,7 +850,7 @@ function renderCart() {
   const box = $("cart-items");
   $("cart-tools").hidden = !lines.length;
   if (!lines.length) {
-    box.innerHTML = emptyState("Tu carrito está vacío.", "Añade cartas con el botón 🛒 desde cualquier set, tu colección o tus listas.", "#/explorar", "Explorar sets");
+    box.innerHTML = emptyState("Tu carrito está vacío.", "Añade cartas desde cualquier set, tu colección o tus listas.", "#/explorar", "Explorar sets");
     $("cart-summary").innerHTML = "";
     return;
   }
@@ -961,11 +973,11 @@ async function optimizeCart() {
       <small>${best ? `${best.label}, envíos incluidos` : "Precio de tendencia de Cardmarket"}${best && leftover.length ? ` + ${leftover.length} carta(s) en Cardmarket sin envíos` : ""}</small>
     </div>
     ${options.length ? `<div class="opt-rows">${options.map(row).join("")}</div>` : ""}
-    ${ctItems.length ? `<button class="btn send-ct" id="btn-send-ct">⚡ Enviar a mi carrito de CardTrader</button>
+    ${ctItems.length ? `<button class="btn send-ct" id="btn-send-ct">${ic("bolt")}Enviar a mi carrito de CardTrader</button>
       <p class="tiny muted" id="send-ct-msg">Añade a tu carrito de CardTrader la mejor oferta calidad/precio de cada carta, en su idioma. La compra la confirmas tú allí.</p>` : ""}
     <h3 class="opt-h">Dónde comprar cada carta</h3>
     <div id="opt-detail">${best ? detailOf(best.key) : ""}${leftoverDetail()}</div>
-    <p class="muted tiny">${ct ? `Ofertas de CardTrader del ${new Date(ct.updated).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}: en el idioma de cada línea, Near Mint o mejor, versión normal (sin reverse holo), envío a España. ` : ""}En Pokémon, por ahora solo hay ofertas de CardTrader para Escarlata y Púrpura y Megaevolución; el resto se estima con Cardmarket. Los precios pueden haber cambiado y no incluyen comisiones de pago. Para comprar, abre cada carta y elige la oferta del país indicado.</p>`;
+    <p class="muted opt-foot">${ct ? `Ofertas de CardTrader del ${new Date(ct.updated).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}: en el idioma de cada línea, Near Mint o mejor, versión normal (sin reverse holo), envío a España. ` : ""}En Pokémon, por ahora solo hay ofertas de CardTrader para Escarlata y Púrpura y Megaevolución; el resto se estima con Cardmarket. Los precios pueden haber cambiado y no incluyen comisiones de pago. Para comprar, abre cada carta y elige la oferta del país indicado.</p>`;
 
   let chosen = best?.key;
   out.querySelectorAll("[data-show]").forEach((b) => {
@@ -1006,7 +1018,7 @@ async function optimizeCart() {
 // ---------- Cuenta ----------
 function renderAccount() {
   const user = Auth.user;
-  $("btn-account").textContent = user ? "👤 " + (user.email || "Mi cuenta").split("@")[0] : "Entrar";
+  $("btn-account").innerHTML = user ? ic("user") + escapeHtml((user.email || "Mi cuenta").split("@")[0]) : "Entrar";
   const body = $("account-body");
   if (!Auth.enabled()) {
     body.innerHTML = `<h2 id="acc-title">Cuentas de usuario</h2>
@@ -1139,6 +1151,22 @@ $("btn-none").onclick = () => {
   renderSetCards();
 };
 $("btn-list").onclick = openDrawer;
+
+// Menú de opciones del set
+$("btn-more").onclick = (e) => {
+  e.stopPropagation();
+  const m = $("more-menu");
+  m.hidden = !m.hidden;
+  $("btn-more").setAttribute("aria-expanded", !m.hidden);
+};
+document.addEventListener("click", () => {
+  $("more-menu").hidden = true;
+  $("btn-more").setAttribute("aria-expanded", "false");
+});
+
+// Ayuda que solo se ve hasta que se entiende
+$("set-hint").hidden = !!store.get("hint-ok");
+$("btn-hint-ok").onclick = () => { store.set("hint-ok", true); $("set-hint").hidden = true; };
 
 // ---------- Escáner ----------
 function scanMatched(found) {

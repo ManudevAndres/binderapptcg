@@ -3,373 +3,378 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Binder — Completa tu colección TCG pagando menos</title>
-<meta name="description" content="Marca las cartas que te faltan, compara Cardmarket y CardTrader y descubre el carrito más barato con envío incluido. Pokémon, One Piece y más.">
+<title>Binder — Tu colección de cartas Pokémon y One Piece</title>
+<meta name="description" content="Marca las cartas que tienes, descubre lo que te falta y cómpralo donde te salga más barato, con envíos incluidos. Pokémon y One Piece, en tu idioma.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0d0f1a;
-    --bg-2: #151829;
-    --card: #1c2036;
-    --line: #2a2f4d;
-    --text: #eef0fa;
-    --muted: #9aa0c3;
-    --accent: #ffcb3d;
-    --accent-2: #6c7bff;
-    --ok: #3ddc97;
-    --bad: #ff6b81;
-    --radius: 18px;
+    --bg: #0e0f1a; --bg-2: #161827; --card: #1d2033; --line: #2b2f4a;
+    --text: #f1f2fa; --muted: #a0a5c4;
+    --yellow: #ffcb3d; --red: #ff7186; --blue: #7c88ff; --green: #3ddc97;
+    --display: "Bricolage Grotesque", Inter, sans-serif;
+    --foil: linear-gradient(115deg, #ff7186, #ffcb3d 28%, #3ddc97 52%, #5cc8ff 72%, #7c88ff);
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font: 16px/1.6 Inter, system-ui, sans-serif;
-    -webkit-font-smoothing: antialiased;
-  }
-  h1, h2, h3 { font-family: "Space Grotesk", Inter, sans-serif; line-height: 1.15; margin: 0 0 .5em; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.55 Inter, system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  h1, h2, h3 { font-family: var(--display); font-weight: 800; line-height: 1.04; letter-spacing: -.02em; margin: 0 0 .4em; }
   a { color: inherit; }
-  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+  img { display: block; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+  .muted { color: var(--muted); }
+  a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
 
-  /* Nav */
-  nav { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
-  .logo { display: flex; align-items: center; gap: 10px; font: 700 22px "Space Grotesk", sans-serif; text-decoration: none; }
-  .logo-mark { width: 30px; height: 38px; border-radius: 6px; background: linear-gradient(135deg, var(--accent), #ff8a3d); position: relative; transform: rotate(-8deg); }
-  .logo-mark::after { content: ""; position: absolute; inset: 4px; border-radius: 3px; border: 2px solid rgba(13,15,26,.55); }
-  .btn {
-    display: inline-block; border: 0; cursor: pointer; text-decoration: none;
-    background: var(--accent); color: #1a1400; font: 600 16px Inter, sans-serif;
-    padding: 14px 22px; border-radius: 12px; transition: transform .15s, box-shadow .15s;
-  }
-  .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,203,61,.3); }
-  .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
-  .btn-ghost:hover { box-shadow: none; border-color: var(--muted); }
-  nav .btn { padding: 10px 16px; font-size: 14px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; cursor: pointer; background: var(--yellow); color: #1a1400; font: 600 17px Inter, sans-serif; text-decoration: none; padding: 15px 26px; border-radius: 12px; transition: transform .15s, background .15s; }
+  .btn:hover { background: #ffd563; transform: translateY(-2px); }
+  .btn.quiet { background: none; color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+  .btn.quiet:hover { background: none; box-shadow: inset 0 0 0 1px var(--muted); }
 
-  /* Hero */
-  .hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center; padding: 40px 0 80px; }
-  .pill { display: inline-block; font-size: 13px; color: var(--accent); background: rgba(255,203,61,.1); border: 1px solid rgba(255,203,61,.25); padding: 4px 12px; border-radius: 999px; margin-bottom: 18px; }
-  .hero h1 { font-size: clamp(36px, 5.5vw, 60px); letter-spacing: -.02em; }
-  .hero h1 em { font-style: normal; color: var(--accent); }
-  .hero p.lead { font-size: 19px; color: var(--muted); max-width: 520px; margin: 0 0 28px; }
-  .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; }
-  .trust { margin-top: 22px; font-size: 14px; color: var(--muted); }
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; }
+  .logo { display: flex; align-items: center; gap: 10px; font: 800 24px var(--display); text-decoration: none; }
+  .logo i { width: 24px; height: 33px; border-radius: 4px; transform: rotate(-8deg); background: linear-gradient(135deg, #ffcb3d, #ff7186 55%, #7c88ff); box-shadow: inset 0 0 0 2px rgba(14,15,26,.35); }
+  nav .btn { padding: 10px 18px; font-size: 15px; border-radius: 10px; }
 
-  /* Binder mockup */
-  .binder {
-    background: linear-gradient(160deg, var(--card), var(--bg-2));
-    border: 1px solid var(--line); border-radius: 24px; padding: 22px;
-    box-shadow: 0 30px 80px rgba(0,0,0,.45);
-  }
-  .binder-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; gap: 12px; }
-  .binder-head strong { font-family: "Space Grotesk", sans-serif; font-size: 18px; }
-  .binder-head span { font-size: 13px; color: var(--muted); }
-  .progress { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin-bottom: 16px; }
-  .progress i { display: block; height: 100%; width: 72%; background: linear-gradient(90deg, var(--accent-2), var(--accent)); }
-  .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
-  .slot { aspect-ratio: 63 / 88; border-radius: 7px; position: relative; overflow: hidden; }
-  .slot.have { background: linear-gradient(150deg, var(--c1), var(--c2)); }
-  .slot.have::before { content: ""; position: absolute; inset: 5px 5px 45% 5px; border-radius: 4px; background: rgba(255,255,255,.18); }
-  .slot.have::after { content: ""; position: absolute; left: 5px; right: 5px; bottom: 8px; height: 22%; border-radius: 3px; background: rgba(0,0,0,.15); }
-  .slot.miss { border: 1.5px dashed #4a5180; background: rgba(255,255,255,.02); display: flex; align-items: center; justify-content: center; }
-  .slot.miss b { font: 600 10px Inter, sans-serif; color: var(--accent); background: rgba(255,203,61,.12); padding: 2px 5px; border-radius: 5px; }
-  .binder-foot { margin-top: 16px; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; background: rgba(61,220,151,.08); border: 1px solid rgba(61,220,151,.25); border-radius: 12px; font-size: 14px; }
-  .binder-foot b { color: var(--ok); font-size: 18px; font-family: "Space Grotesk", sans-serif; }
+  /* Portada */
+  .hero-bg { position: relative; isolation: isolate; overflow-x: clip; }
+  .hero-bg::before { content: ""; position: absolute; z-index: -1; inset: -120px -10% 0 30%; background: radial-gradient(closest-side, rgba(255,113,134,.20), transparent), radial-gradient(closest-side at 70% 60%, rgba(92,200,255,.17), transparent), radial-gradient(closest-side at 35% 75%, rgba(255,203,61,.12), transparent); pointer-events: none; }
+  .hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 48px; align-items: center; padding: 26px 0 70px; }
+  .hero h1 { font-size: clamp(44px, 6.6vw, 82px); }
+  .hero h1 span { background: var(--foil); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { font-size: clamp(18px, 2vw, 21px); color: var(--muted); max-width: 500px; margin: 0 0 28px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 10px; }
+  .fine { margin: 18px 0 0; font-size: 14px; color: var(--muted); }
 
-  /* Sections */
-  section { padding: 72px 0; }
-  .section-title { text-align: center; max-width: 680px; margin: 0 auto 44px; }
-  .section-title h2 { font-size: clamp(28px, 4vw, 40px); }
-  .section-title p { color: var(--muted); font-size: 18px; margin: 0; }
-  .alt { background: var(--bg-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  /* La página del binder */
+  .binder { position: relative; padding: 18px 18px 18px 46px; border-radius: 16px; background: linear-gradient(160deg, #23263c, #14162a); box-shadow: 0 40px 90px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.06); transform: perspective(1600px) rotateY(-5deg) rotateX(2deg); }
+  .rings { position: absolute; left: 13px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: space-evenly; }
+  .rings i { width: 19px; height: 19px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #4c5175, #0a0b14 70%); box-shadow: inset 0 1px 2px rgba(0,0,0,.7); }
+  .pockets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+  .pocket { position: relative; aspect-ratio: 63 / 88; border-radius: 7px; background: rgba(255,255,255,.035); box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); --mx: 50%; --rx: 0deg; --ry: 0deg; }
+  .pocket .face { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; transition: transform .18s ease-out, box-shadow .18s; transform: rotateX(var(--rx)) rotateY(var(--ry)); }
+  .pocket img { width: 100%; height: 100%; object-fit: cover; }
+  .pocket .face::after { content: ""; position: absolute; inset: 0; opacity: 0; background: linear-gradient(115deg, transparent 22%, rgba(255,113,134,.75) 38%, rgba(255,203,61,.75) 46%, rgba(61,220,151,.75) 54%, rgba(124,136,255,.75) 62%, transparent 78%); background-size: 250% 100%; background-position: var(--mx) 0; mix-blend-mode: color-dodge; transition: opacity .2s; pointer-events: none; }
+  .pocket:hover { z-index: 3; }
+  .pocket:hover .face { transform: scale(1.09) rotateX(var(--rx)) rotateY(var(--ry)); box-shadow: 0 18px 40px rgba(0,0,0,.6); }
+  .pocket:hover .face::after, .pocket.shine .face::after { opacity: .55; }
+  .pocket.shine .face::after { animation: sweep 7s ease-in-out infinite; }
+  @keyframes sweep { 0%, 55% { background-position: 130% 0; opacity: 0; } 62% { opacity: .6; } 85% { background-position: -30% 0; opacity: .6; } 100% { background-position: -30% 0; opacity: 0; } }
+  .pocket.miss img { filter: grayscale(.85) brightness(.55); }
+  .pocket.miss b { position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); white-space: nowrap; font: 600 clamp(10px, 1.1vw, 13px) Inter, sans-serif; background: var(--yellow); color: #1a1400; padding: 3px 8px; border-radius: 6px; }
+  .binder-foot { display: flex; align-items: center; gap: 12px; margin-top: 14px; font-size: 14px; color: var(--muted); }
+  .bar { flex: 1; height: 7px; background: rgba(255,255,255,.08); border-radius: 99px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 78%; background: var(--foil); }
 
-  .pains { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-  .pain { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
-  .pain .ico { font-size: 28px; margin-bottom: 10px; }
-  .pain h3 { font-size: 19px; }
-  .pain p { color: var(--muted); margin: 0; }
+  /* Tira de cartas */
+  .strip { overflow: hidden; padding: 6px 0 12px; mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent); }
+  .strip ul { display: flex; gap: 12px; width: max-content; list-style: none; margin: 0; padding: 0; animation: slide 70s linear infinite; }
+  .strip:hover ul { animation-play-state: paused; }
+  .strip li { width: 138px; aspect-ratio: 63 / 88; border-radius: 7px; overflow: hidden; background: var(--card); flex-shrink: 0; }
+  .strip img { width: 100%; height: 100%; object-fit: cover; }
+  @keyframes slide { to { transform: translateX(calc(-50% - 6px)); } }
 
-  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; counter-reset: s; }
-  .step { position: relative; padding: 28px 24px 24px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--bg); }
-  .step::before { counter-increment: s; content: counter(s); position: absolute; top: -16px; left: 22px; width: 34px; height: 34px; border-radius: 10px; background: var(--accent); color: #1a1400; font: 700 17px "Space Grotesk", sans-serif; display: grid; place-items: center; }
-  .step h3 { font-size: 19px; margin-top: 6px; }
-  .step p { color: var(--muted); margin: 0; }
+  /* Secciones */
+  section { padding: 76px 0; }
+  .eyebrow { font-size: 14px; font-weight: 600; color: var(--yellow); margin: 0 0 10px; }
+  .row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: center; }
+  .row + .row { margin-top: 90px; }
+  .row.flip > :first-child { order: 2; }
+  .row h2 { font-size: clamp(30px, 4vw, 46px); }
+  .row h2 + p { color: var(--muted); margin: 0; max-width: 460px; }
+  .demo { background: var(--bg-2); border-radius: 18px; padding: 20px; }
 
-  /* Compare */
-  .compare { max-width: 760px; margin: 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
-  .row { display: grid; grid-template-columns: 1fr 110px 110px; gap: 10px; align-items: center; padding: 16px 22px; border-top: 1px solid var(--line); }
-  .row:first-child { border-top: 0; background: rgba(255,255,255,.03); font-weight: 600; font-size: 14px; color: var(--muted); }
-  .row > :not(:first-child) { text-align: center; }
-  .yes { color: var(--ok); font-weight: 700; }
-  .no { color: var(--bad); font-weight: 700; }
-  .half { color: var(--accent); font-weight: 700; }
+  .mini-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .mini-cards div { position: relative; border-radius: 6px; overflow: hidden; aspect-ratio: 63 / 88; background: var(--card); }
+  .mini-cards img { width: 100%; height: 100%; object-fit: cover; }
+  .mini-cards .off img { filter: grayscale(.8) brightness(.6); }
+  .mini-cards .on { box-shadow: 0 0 0 2px var(--green); }
+  .mini-cards .on::after { content: "✓"; position: absolute; top: 5px; right: 5px; width: 20px; height: 20px; border-radius: 50%; background: var(--green); color: #06291a; font-size: 12px; font-weight: 800; display: grid; place-items: center; }
+  .stat-line { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; font-size: 14px; color: var(--muted); }
+  .stat-line b { font: 800 26px var(--display); color: var(--yellow); }
 
-  .games { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
-  .game { padding: 10px 18px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); font-weight: 500; }
-  .game.soon { color: var(--muted); border-style: dashed; }
+  .option { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 15px; border-radius: 11px; background: var(--card); font-size: 15px; }
+  .option + .option { margin-top: 7px; }
+  .option.best { box-shadow: inset 0 0 0 1.5px var(--green); }
+  .option small { display: block; color: var(--muted); font-size: 13px; }
+  .option b { font: 800 21px var(--display); white-space: nowrap; }
+  .option.best b { color: var(--green); }
+  .demo-note { margin: 10px 2px 0; font-size: 13px; color: var(--muted); }
+  .demo svg { width: 100%; height: auto; display: block; }
+  .big-value { font: 800 38px var(--display); margin: 0; }
+  .big-value small { font: 600 15px Inter, sans-serif; color: var(--green); margin-left: 6px; }
 
-  /* Form */
-  .signup { display: grid; grid-template-columns: 1fr 1.1fr; gap: 40px; align-items: start; }
-  .signup h2 { font-size: clamp(28px, 4vw, 40px); }
-  .signup .perks { list-style: none; padding: 0; margin: 20px 0 0; }
-  .signup .perks li { padding: 8px 0 8px 30px; position: relative; color: var(--muted); }
-  .signup .perks li::before { content: "✓"; position: absolute; left: 0; color: var(--ok); font-weight: 700; }
-  form { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 26px; display: grid; gap: 16px; }
-  label { font-size: 14px; font-weight: 600; display: block; margin-bottom: 6px; }
-  input[type=email], select, textarea {
-    width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line);
-    border-radius: 10px; padding: 12px 14px; font: 15px Inter, sans-serif;
-  }
-  textarea { resize: vertical; min-height: 80px; }
-  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-2); outline-offset: 1px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .extras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 80px; }
+  .extra { background: var(--bg-2); border-radius: 14px; padding: 18px; }
+  .extra h3 { font-size: 19px; margin-bottom: 6px; }
+  .extra p { margin: 0; color: var(--muted); font-size: 15px; }
+  .flags { display: flex; gap: 5px; margin-bottom: 12px; height: 18px; }
+  .flags img { width: 24px; height: 18px; border-radius: 2px; }
+
+  /* Lista de novedades */
+  .signup { background: var(--bg-2); }
+  .signup .row { align-items: start; }
+  form { display: grid; gap: 16px; background: var(--card); border-radius: 18px; padding: 24px; }
+  label, .legend { font-size: 14px; font-weight: 600; display: block; margin-bottom: 7px; }
+  input[type=email] { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font: 16px Inter, sans-serif; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { margin: 0; font-weight: 400; }
   .chip input { position: absolute; opacity: 0; pointer-events: none; }
-  .chip span { display: inline-block; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; cursor: pointer; font-size: 14px; user-select: none; transition: .15s; }
-  .chip input:checked + span { background: rgba(108,123,255,.18); border-color: var(--accent-2); color: #fff; }
-  .chip input:focus-visible + span { outline: 2px solid var(--accent-2); }
-  form .btn { width: 100%; font-size: 17px; }
+  .chip span { display: inline-block; padding: 7px 13px; background: var(--bg); border-radius: 8px; cursor: pointer; font-size: 14px; user-select: none; box-shadow: inset 0 0 0 1px var(--line); }
+  .chip input:checked + span { box-shadow: inset 0 0 0 1.5px var(--yellow); background: rgba(255,203,61,.1); }
+  .chip input:focus-visible + span { outline: 2px solid var(--blue); outline-offset: 2px; }
   .legal { font-size: 12px; color: var(--muted); margin: 0; }
-  .msg { display: none; padding: 14px; border-radius: 12px; font-size: 15px; }
-  .msg.ok { display: block; background: rgba(61,220,151,.1); border: 1px solid rgba(61,220,151,.3); }
-  .msg.err { display: block; background: rgba(255,107,129,.1); border: 1px solid rgba(255,107,129,.3); }
+  .msg { display: none; padding: 12px 14px; border-radius: 10px; font-size: 15px; }
+  .msg.ok { display: block; background: rgba(61,220,151,.12); }
+  .msg.err { display: block; background: rgba(255,113,134,.14); }
 
-  /* FAQ */
   .faq { max-width: 760px; margin: 0 auto; }
-  details { border-bottom: 1px solid var(--line); padding: 18px 4px; }
-  summary { cursor: pointer; font-weight: 600; font-size: 17px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
-  summary::after { content: "+"; color: var(--accent); font-size: 22px; line-height: 1; }
+  .faq h2 { font-size: clamp(30px, 4vw, 46px); }
+  details { border-top: 1px solid var(--line); padding: 16px 2px; }
+  summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--yellow); font-size: 22px; line-height: 1; }
   details[open] summary::after { content: "–"; }
-  details p { color: var(--muted); margin: 10px 0 0; }
+  details p { color: var(--muted); margin: 8px 0 0; font-size: 16px; }
 
-  footer { padding: 36px 0 48px; color: var(--muted); font-size: 13px; text-align: center; }
+  footer { padding: 30px 0 44px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
+  footer p { margin: 0; max-width: 760px; }
 
-  @media (max-width: 860px) {
-    .hero, .signup { grid-template-columns: 1fr; }
-    .hero { padding-top: 16px; gap: 36px; }
-    .pains, .steps { grid-template-columns: 1fr; }
-    .steps { gap: 30px; }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: minmax(0, 1fr); gap: 34px; padding-bottom: 46px; }
+    .binder { transform: none; }
+    .row, .row.flip { grid-template-columns: minmax(0, 1fr); gap: 26px; }
+    .row.flip > :first-child { order: 0; }
+    .extras { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 56px; }
     section { padding: 56px 0; }
+    .row + .row { margin-top: 60px; }
   }
   @media (max-width: 520px) {
+    body { font-size: 16px; }
     .wrap { padding: 0 16px; }
-    .row { grid-template-columns: 1fr 64px 64px; padding: 14px; font-size: 14px; }
-    .binder { padding: 16px; }
-    .grid { gap: 6px; }
-    nav .btn { display: none; }
+    .cta .btn { flex: 1 1 100%; }
+    .binder { padding: 12px 12px 12px 34px; }
+    .rings { left: 8px; }
+    .rings i { width: 15px; height: 15px; }
+    .pockets { gap: 6px; }
+    .strip li { width: 104px; }
+    .extras { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .strip ul, .pocket.shine .face::after { animation: none; }
+    .strip { overflow-x: auto; }
+    .pocket .face, .btn { transition: none; }
   }
 </style>
 </head>
 <body>
 
-<header class="wrap">
-  <nav>
-    <a class="logo" href="#"><span class="logo-mark"></span>Binder</a>
-    <a class="btn" href="#apuntate">Quiero acceso anticipado</a>
-  </nav>
+<div class="hero-bg">
+  <header class="wrap">
+    <nav>
+      <a class="logo" href="./"><i></i>Binder</a>
+      <a class="btn" href="app/">Abrir la app</a>
+    </nav>
 
-  <div class="hero">
-    <div>
-      <span class="pill">Pokémon · One Piece · y más TCG</span>
-      <h1>Completa tu colección <em>pagando menos</em>.</h1>
-      <p class="lead">Marca las cartas que te faltan, compara Cardmarket y CardTrader de un vistazo y descubre el carrito más barato <strong>con los envíos incluidos</strong>.</p>
-      <div class="hero-cta">
-        <a class="btn" href="#apuntate">Únete a la lista de espera</a>
-        <a class="btn btn-ghost" href="app/">Probar la demo (Pokémon)</a>
-      </div>
-      <p class="trust">Gratis para los primeros usuarios · Sin spam · Hecho por coleccionistas en España</p>
-    </div>
-
-    <div class="binder" aria-label="Ejemplo de colección">
-      <div class="binder-head">
-        <strong>Mi colección · Set de ejemplo</strong>
-        <span>144 / 200 cartas</span>
-      </div>
-      <div class="progress"><i></i></div>
-      <div class="grid" id="demo-grid"></div>
-      <div class="binder-foot">
-        <span>Te faltan 56 cartas.<br>Mejor carrito encontrado:</span>
-        <b>38,40 € <small style="font-size:12px;color:var(--muted)">en 3 envíos</small></b>
-      </div>
-    </div>
-  </div>
-</header>
-
-<section class="alt">
-  <div class="wrap">
-    <div class="section-title">
-      <h2>Comprar singles no debería ser un trabajo</h2>
-      <p>Si coleccionas, compras para jugar o especulas, seguro que te suena.</p>
-    </div>
-    <div class="pains">
-      <div class="pain"><div class="ico">📋</div><h3>Listas en mil sitios</h3><p>La colección en una app, la lista de faltantes en una hoja de cálculo y los precios en otra pestaña.</p></div>
-      <div class="pain"><div class="ico">📦</div><h3>Envíos que se comen el ahorro</h3><p>La carta más barata viene de un vendedor distinto cada vez y acabas pagando más en envíos que en cartas.</p></div>
-      <div class="pain"><div class="ico">🐢</div><h3>Interfaces lentas y confusas</h3><p>Filtros eternos, comparar marketplaces a mano y ninguna forma de ver cuánto cuesta completar un set.</p></div>
-    </div>
-  </div>
-</section>
-
-<section id="como-funciona">
-  <div class="wrap">
-    <div class="section-title">
-      <h2>Cómo funciona</h2>
-      <p>Tu álbum digital conectado a los precios reales del mercado.</p>
-    </div>
-    <div class="steps">
-      <div class="step"><h3>Marca tu colección</h3><p>Elige un set, verás todas las cartas en cuadrícula. Un toque para marcar las que tienes; el resto pasa a tu lista de faltantes.</p></div>
-      <div class="step"><h3>Mira cuánto te cuesta</h3><p>Precio estimado para completar el set con datos diarios de los principales marketplaces europeos.</p></div>
-      <div class="step"><h3>Compra el carrito óptimo</h3><p>Calculamos qué vendedores combinar para pagar menos sumando cartas y envíos, y te llevamos directo a comprar.</p></div>
-    </div>
-  </div>
-</section>
-
-<section class="alt">
-  <div class="wrap">
-    <div class="section-title">
-      <h2>Lo que hoy tienes que hacer a mano</h2>
-    </div>
-    <div class="compare" role="table">
-      <div class="row" role="row"><span>Función</span><span>A mano hoy</span><span>Binder</span></div>
-      <div class="row" role="row"><span>Álbum visual de cada set con % completado</span><span class="half">Depende</span><span class="yes">✓</span></div>
-      <div class="row" role="row"><span>Coste total para completar un set</span><span class="no">✗</span><span class="yes">✓</span></div>
-      <div class="row" role="row"><span>Comparar varios marketplaces a la vez</span><span class="no">✗</span><span class="yes">✓</span></div>
-      <div class="row" role="row"><span>Carrito más barato con envíos incluidos</span><span class="half">Parcial</span><span class="yes">✓</span></div>
-      <div class="row" role="row"><span>Alertas cuando una carta baja de precio</span><span class="no">✗</span><span class="yes">✓</span></div>
-      <div class="row" role="row"><span>Pensado para el móvil</span><span class="half">Regular</span><span class="yes">✓</span></div>
-    </div>
-  </div>
-</section>
-
-<section>
-  <div class="wrap">
-    <div class="section-title">
-      <h2>Juegos</h2>
-      <p>Empezamos por los que más se mueven en España. Dinos cuál quieres después.</p>
-    </div>
-    <div class="games">
-      <span class="game">Pokémon TCG</span>
-      <span class="game">One Piece Card Game</span>
-      <span class="game soon">Magic: The Gathering</span>
-      <span class="game soon">Lorcana</span>
-      <span class="game soon">Yu-Gi-Oh!</span>
-      <span class="game soon">Dragon Ball Fusion World</span>
-    </div>
-  </div>
-</section>
-
-<section class="alt" id="apuntate">
-  <div class="wrap signup">
-    <div>
-      <h2>Apúntate y ayúdanos a construirlo</h2>
-      <p style="color:var(--muted);font-size:18px">Estamos validando la idea. Si hay interés suficiente, los primeros de la lista entrarán gratis en la beta.</p>
-      <ul class="perks">
-        <li>Acceso anticipado a la beta</li>
-        <li>Plan Pro gratis para los primeros usuarios</li>
-        <li>Votas qué funciones y juegos llegan primero</li>
-      </ul>
-    </div>
-
-    <form id="waitlist" name="waitlist" method="POST" data-netlify="true" netlify-honeypot="web" novalidate>
-      <input type="hidden" name="form-name" value="waitlist">
-      <p hidden><label>No rellenar: <input name="web"></label></p>
+    <div class="hero">
       <div>
-        <label for="email">Tu email</label>
-        <input id="email" name="email" type="email" placeholder="tu@email.com" autocomplete="email" required>
+        <h1>Cada carta, en su <span>funda</span>.</h1>
+        <p class="lead">Marca lo que tienes, descubre lo que te falta y cómpralo donde te salga más barato, con envíos incluidos. Pokémon y One Piece, en tu idioma.</p>
+        <div class="cta">
+          <a class="btn" href="app/">Empezar mi colección</a>
+          <a class="btn quiet" href="#como-funciona">Cómo funciona</a>
+        </div>
+        <p class="fine">Gratis y sin instalar nada. Precios de Cardmarket y CardTrader actualizados a diario.</p>
       </div>
 
-      <div>
-        <label>¿Qué te describe mejor? <span style="font-weight:400;color:var(--muted)">(puedes marcar varias)</span></label>
-        <div class="chips">
-          <label class="chip"><input type="checkbox" name="perfil" value="coleccionista"><span>Coleccionista</span></label>
-          <label class="chip"><input type="checkbox" name="perfil" value="jugador"><span>Jugador/a</span></label>
-          <label class="chip"><input type="checkbox" name="perfil" value="vendedor"><span>Vendedor/a</span></label>
-          <label class="chip"><input type="checkbox" name="perfil" value="inversor"><span>Inversor/especulador</span></label>
+      <div class="binder" id="binder" role="img" aria-label="Página de un binder con cartas de Pokémon y One Piece; dos fundas muestran cartas que faltan">
+        <div class="rings"><i></i><i></i><i></i></div>
+        <div class="pockets">
+          <div class="pocket shine"><div class="face"><img src="https://assets.tcgdex.net/en/base/base1/4/high.webp" alt="" width="600" height="825"></div></div>
+          <div class="pocket"><div class="face"><img src="https://cardtrader.com/uploads/blueprints/image/244467/show_monkey-d-luffy-alternate-art-fixed-reprint-op-01-romance-dawn.jpg" alt="" width="500" height="698"></div></div>
+          <div class="pocket"><div class="face"><img src="https://assets.tcgdex.net/en/base/base1/58/high.webp" alt="" width="600" height="825"></div></div>
+          <div class="pocket"><div class="face"><img src="https://cardtrader.com/uploads/blueprints/image/244496/show_nami-alternate-art-fixed-reprint-op-01-romance-dawn.jpg" alt="" width="500" height="698"></div></div>
+          <div class="pocket miss"><div class="face"><img src="https://assets.tcgdex.net/en/base/base1/2/high.webp" alt="" width="600" height="825"></div><b>Te falta</b></div>
+          <div class="pocket"><div class="face"><img src="https://assets.tcgdex.net/en/me/me05/116/high.webp" alt="" width="600" height="825"></div></div>
+          <div class="pocket"><div class="face"><img src="https://cardtrader.com/uploads/blueprints/image/244459/show_roronoa-zoro-alternate-art-romance-dawn.jpg" alt="" width="500" height="698"></div></div>
+          <div class="pocket"><div class="face"><img src="https://assets.tcgdex.net/en/base/base1/10/high.webp" alt="" width="600" height="825"></div></div>
+          <div class="pocket miss"><div class="face"><img src="https://cardtrader.com/uploads/blueprints/image/244667/show_shanks-alternative-art-secret-rare-romance-dawn.jpg" alt="" width="500" height="698"></div><b>Te falta</b></div>
+        </div>
+        <div class="binder-foot"><span>7 de 9</span><div class="bar"><i></i></div></div>
+      </div>
+    </div>
+  </header>
+</div>
+
+<div class="strip" aria-hidden="true"><ul id="strip"></ul></div>
+
+<main>
+  <section id="como-funciona">
+    <div class="wrap">
+      <div class="row">
+        <div>
+          <p class="eyebrow">Tu álbum</p>
+          <h2>Completa cada set sin hojas de cálculo.</h2>
+          <p>Abres un set, tocas las cartas que tienes y Binder te dice cuántas te faltan y cuánto cuesta terminarlo. Cada carta guarda su idioma, con su banderita.</p>
+        </div>
+        <div class="demo">
+          <div class="stat-line"><span>Oscuridad Absoluta · Pokémon</span></div>
+          <div class="mini-cards">
+            <div class="on"><img loading="lazy" src="https://assets.tcgdex.net/en/me/me05/007/low.webp" alt=""></div>
+            <div class="off"><img loading="lazy" src="https://assets.tcgdex.net/en/me/me05/023/low.webp" alt=""></div>
+            <div class="on"><img loading="lazy" src="https://assets.tcgdex.net/en/me/me05/050/low.webp" alt=""></div>
+            <div class="on"><img loading="lazy" src="https://assets.tcgdex.net/en/me/me05/061/low.webp" alt=""></div>
+            <div class="off"><img loading="lazy" src="https://assets.tcgdex.net/en/me/me05/099/low.webp" alt=""></div>
+            <div class="on"><img loading="lazy" src="https://assets.tcgdex.net/en/me/me05/116/low.webp" alt=""></div>
+            <div class="off"><img loading="lazy" src="https://assets.tcgdex.net/en/me/me05/117/low.webp" alt=""></div>
+            <div class="off"><img loading="lazy" src="https://assets.tcgdex.net/en/me/me05/120/low.webp" alt=""></div>
+          </div>
         </div>
       </div>
 
-      <div>
-        <label>¿Qué juegos?</label>
-        <div class="chips">
-          <label class="chip"><input type="checkbox" name="juego" value="pokemon"><span>Pokémon</span></label>
-          <label class="chip"><input type="checkbox" name="juego" value="onepiece"><span>One Piece</span></label>
-          <label class="chip"><input type="checkbox" name="juego" value="magic"><span>Magic</span></label>
-          <label class="chip"><input type="checkbox" name="juego" value="lorcana"><span>Lorcana</span></label>
-          <label class="chip"><input type="checkbox" name="juego" value="yugioh"><span>Yu-Gi-Oh!</span></label>
-          <label class="chip"><input type="checkbox" name="juego" value="otro"><span>Otro</span></label>
+      <div class="row flip">
+        <div>
+          <p class="eyebrow">Tu compra</p>
+          <h2>Lo más barato, contando los envíos.</h2>
+          <p>Llena el carrito y Binder combina vendedores de CardTrader para ahorrarte envíos, lo compara con un único paquete por CardTrader Zero y te enseña la referencia de Cardmarket. La compra la cierras tú, en cada tienda.</p>
+        </div>
+        <div class="demo">
+          <div class="option best"><span>Vendedores en España<small>6 cartas · 2 envíos</small></span><b>3,77 €</b></div>
+          <div class="option"><span>Un solo paquete con Zero<small>6 cartas · 1 envío</small></span><b>15,70 €</b></div>
+          <p class="demo-note">Cálculo real de 6 cartas de Oscuridad Absoluta en español, el 29/10/2026. Los precios cambian cada día.</p>
         </div>
       </div>
 
-      <div>
-        <label for="gasto">¿Cuánto gastas al mes en cartas sueltas?</label>
-        <select id="gasto" name="gasto">
-          <option value="">Prefiero no decirlo</option>
-          <option value="<20">Menos de 20 €</option>
-          <option value="20-50">20 – 50 €</option>
-          <option value="50-150">50 – 150 €</option>
-          <option value=">150">Más de 150 €</option>
-        </select>
+      <div class="row">
+        <div>
+          <p class="eyebrow">Tu cartera</p>
+          <h2>Mira cuánto vale y hacia dónde va.</h2>
+          <p>El valor de toda tu colección en una cifra, su evolución día a día y las cartas que más suben y bajan. Pon una alerta y te avisamos cuando una carta baje del precio que quieres.</p>
+        </div>
+        <div class="demo">
+          <p class="big-value">1.284,50 € <small>+6,2 %</small></p>
+          <svg viewBox="0 0 520 130" role="img" aria-label="Gráfico de ejemplo con el valor de una colección subiendo">
+            <defs><linearGradient id="fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#3ddc97" stop-opacity=".28"/><stop offset="1" stop-color="#3ddc97" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0 104 C50 96 70 110 118 88 S190 92 236 70 S320 76 366 50 S450 44 520 16 V130 H0 Z" fill="url(#fill)"/>
+            <path d="M0 104 C50 96 70 110 118 88 S190 92 236 70 S320 76 366 50 S450 44 520 16" fill="none" stroke="#3ddc97" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+          <p class="demo-note">Datos de ejemplo.</p>
+        </div>
       </div>
 
-      <div>
-        <label for="dolor">¿Qué es lo que más te molesta al comprar cartas? <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
-        <textarea id="dolor" name="dolor" placeholder="Ej.: pagar 5 envíos por 5 cartas…"></textarea>
+      <div class="extras">
+        <div class="extra">
+          <div class="flags"><img loading="lazy" src="https://flagcdn.com/48x36/es.png" alt=""><img loading="lazy" src="https://flagcdn.com/48x36/gb.png" alt=""><img loading="lazy" src="https://flagcdn.com/48x36/jp.png" alt=""><img loading="lazy" src="https://flagcdn.com/48x36/fr.png" alt=""></div>
+          <h3>En tu idioma</h3><p>Ofertas de CardTrader y enlace a Cardmarket filtrados por el idioma de cada carta.</p>
+        </div>
+        <div class="extra"><h3>Listas a tu manera</h3><p>Todas tus cartas de un personaje, un mazo o tus favoritas, mezclando sets y juegos.</p></div>
+        <div class="extra"><h3>Compra directa</h3><p>Abre la carta exacta en Cardmarket y CardTrader, o búscala en eBay y Wallapop.</p></div>
+        <div class="extra"><h3>Escáner, en pruebas</h3><p>Lee el número de la carta con la cámara del móvil y la marca en tu colección.</p></div>
       </div>
-
-      <button class="btn" type="submit">Quiero acceso anticipado</button>
-      <div class="msg" id="msg" role="status"></div>
-      <p class="legal">Solo usaremos tu email para avisarte del lanzamiento. Puedes darte de baja cuando quieras. Binder es un proyecto independiente, sin relación con Cardmarket, CardTrader, The Pokémon Company ni Bandai.</p>
-    </form>
-  </div>
-</section>
-
-<section>
-  <div class="wrap">
-    <div class="section-title"><h2>Preguntas frecuentes</h2></div>
-    <div class="faq">
-      <details><summary>¿Binder es un marketplace?</summary><p>No. No vendemos cartas: te ayudamos a organizar tu colección y a encontrar la compra más barata en los marketplaces que ya usas. La compra se hace allí.</p></details>
-      <details><summary>¿Cuánto costará?</summary><p>La colección y la lista de faltantes serán gratis. Más adelante habrá un plan Pro opcional (alertas de precio, historial, varias listas). Los primeros de la lista lo tendrán gratis.</p></details>
-      <details><summary>¿De dónde salen los precios?</summary><p>De datos públicos y oficiales que los marketplaces ponen a disposición de desarrolladores, actualizados a diario.</p></details>
-      <details><summary>¿Habrá app para el móvil?</summary><p>Sí. Se podrá instalar desde el navegador en Android e iPhone desde el primer día.</p></details>
     </div>
-  </div>
-</section>
+  </section>
 
-<footer class="wrap">© 2026 Binder · Proyecto en fase de validación · Hecho en España</footer>
+  <section class="signup" id="novedades">
+    <div class="wrap row">
+      <div>
+        <p class="eyebrow">Binder crece con quien lo usa</p>
+        <h2>¿Qué juego quieres después?</h2>
+        <p>Déjanos tu email y te avisamos de las novedades. Tu voto decide qué añadimos primero.</p>
+      </div>
+      <form id="waitlist" name="waitlist" method="POST" data-netlify="true" netlify-honeypot="web" novalidate>
+        <input type="hidden" name="form-name" value="waitlist">
+        <p hidden><label>No rellenar: <input name="web"></label></p>
+        <div>
+          <label for="email">Tu email</label>
+          <input id="email" name="email" type="email" placeholder="tu@email.com" autocomplete="email" required>
+        </div>
+        <div>
+          <span class="legend">Quiero que añadáis</span>
+          <div class="chips">
+            <label class="chip"><input type="checkbox" name="juego" value="magic"><span>Magic</span></label>
+            <label class="chip"><input type="checkbox" name="juego" value="lorcana"><span>Lorcana</span></label>
+            <label class="chip"><input type="checkbox" name="juego" value="yugioh"><span>Yu-Gi-Oh!</span></label>
+            <label class="chip"><input type="checkbox" name="juego" value="dragonball"><span>Dragon Ball</span></label>
+            <label class="chip"><input type="checkbox" name="juego" value="otro"><span>Otro</span></label>
+          </div>
+        </div>
+        <div>
+          <span class="legend">Yo soy</span>
+          <div class="chips">
+            <label class="chip"><input type="checkbox" name="perfil" value="coleccionista"><span>Coleccionista</span></label>
+            <label class="chip"><input type="checkbox" name="perfil" value="jugador"><span>Jugador/a</span></label>
+            <label class="chip"><input type="checkbox" name="perfil" value="vendedor"><span>Vendedor/a</span></label>
+            <label class="chip"><input type="checkbox" name="perfil" value="inversor"><span>Inversor/a</span></label>
+          </div>
+        </div>
+        <button class="btn" type="submit">Avisadme</button>
+        <div class="msg" id="msg" role="status"></div>
+        <p class="legal">Solo usaremos tu email para avisarte de novedades de Binder.</p>
+      </form>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap faq">
+      <h2>Preguntas</h2>
+      <details><summary>¿Binder vende cartas?</summary><p>No. Te ayuda a organizar tu colección y a encontrar dónde comprar más barato. La compra se hace en cada tienda.</p></details>
+      <details><summary>¿Cuánto cuesta?</summary><p>Ahora mismo es gratis.</p></details>
+      <details><summary>¿De dónde salen los precios?</summary><p>De los datos públicos diarios de Cardmarket y de las ofertas de CardTrader. Son orientativos: el precio final depende del vendedor en el momento de comprar.</p></details>
+      <details><summary>¿Necesito cuenta?</summary><p>No. Puedes empezar sin cuenta y tus cartas se guardan en tu navegador. Con cuenta, entras con un enlace a tu email y las tienes en todos tus dispositivos.</p></details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Binder es un proyecto independiente, sin relación con The Pokémon Company, Nintendo, Bandai, Cardmarket ni CardTrader. Las imágenes y marcas de las cartas pertenecen a sus titulares. Datos e imágenes: TCGdex, OPTCG API, Cardmarket y CardTrader.</p>
+  </div>
+</footer>
 
 <script>
-  // En local el formulario va en modo demo; publicado en Netlify lo recoge Netlify Forms.
-  const DEMO = ["localhost", "127.0.0.1", ""].includes(location.hostname);
+  // Tira de cartas (se duplica para que el movimiento sea continuo)
+  const stripCards = [
+    "https://assets.tcgdex.net/en/base/base1/15/low.webp",
+    "https://cardtrader.com/uploads/blueprints/image/244463/preview_trafalgar-law-alternate-art-fixed-reprint-op-01-romance-dawn-244463.jpg",
+    "https://assets.tcgdex.net/en/me/me05/116/low.webp",
+    "https://cardtrader.com/uploads/blueprints/image/244459/preview_roronoa-zoro-alternate-art-romance-dawn.jpg",
+    "https://assets.tcgdex.net/en/base/base1/6/low.webp",
+    "https://cardtrader.com/uploads/blueprints/image/244467/preview_monkey-d-luffy-alternate-art-fixed-reprint-op-01-romance-dawn.jpg",
+    "https://assets.tcgdex.net/en/me/me05/120/low.webp",
+    "https://cardtrader.com/uploads/blueprints/image/244573/preview_donquixote-doflamingo-alternate-art-romance-dawn.jpg",
+    "https://assets.tcgdex.net/en/base/base1/16/low.webp",
+    "https://cardtrader.com/uploads/blueprints/image/244496/preview_nami-alternate-art-fixed-reprint-op-01-romance-dawn.jpg",
+    "https://assets.tcgdex.net/en/me/me05/117/low.webp",
+    "https://cardtrader.com/uploads/blueprints/image/244613/preview_boa-hancock-alternate-art-romance-dawn.jpg",
+    "https://assets.tcgdex.net/en/base/base1/3/low.webp",
+    "https://cardtrader.com/uploads/blueprints/image/244489/preview_244489-sanji-alternate-art-errata-from-the-top-of-your-life-cards-op-01-romance-dawn.jpg",
+  ];
+  document.getElementById("strip").innerHTML = [...stripCards, ...stripCards]
+    .map((src) => `<li><img loading="lazy" src="${src}" alt=""></li>`).join("");
 
-  // Cuadrícula de ejemplo del hero
-  const palettes = [["#ffcb3d","#ff8a3d"],["#6c7bff","#a46cff"],["#3ddc97","#1fa3a3"],["#ff6b81","#c2457a"],["#5fc8ff","#3a7bd5"]];
-  const missing = new Set([2, 6, 9, 13, 17]);
-  const prices = ["0,40 €","1,20 €","3,90 €","0,15 €","7,50 €"];
-  const grid = document.getElementById("demo-grid");
-  let m = 0;
-  for (let i = 0; i < 20; i++) {
-    const d = document.createElement("div");
-    if (missing.has(i)) {
-      d.className = "slot miss";
-      d.innerHTML = "<b>" + prices[m++] + "</b>";
-    } else {
-      const [c1, c2] = palettes[i % palettes.length];
-      d.className = "slot have";
-      d.style.setProperty("--c1", c1);
-      d.style.setProperty("--c2", c2);
-    }
-    grid.appendChild(d);
+  // Brillo y giro de cada carta al pasar por encima
+  if (matchMedia("(hover: hover)").matches && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    document.querySelectorAll(".pocket").forEach((p) => {
+      p.addEventListener("pointermove", (e) => {
+        const r = p.getBoundingClientRect();
+        const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+        p.style.setProperty("--mx", `${x * 100}%`);
+        p.style.setProperty("--ry", `${(x - .5) * 16}deg`);
+        p.style.setProperty("--rx", `${(.5 - y) * 16}deg`);
+      });
+      p.addEventListener("pointerleave", () => {
+        p.style.setProperty("--ry", "0deg");
+        p.style.setProperty("--rx", "0deg");
+      });
+    });
   }
 
-  // Envío del formulario
+  // Formulario: en local va en modo demo; publicado en Netlify lo recoge Netlify Forms
+  const DEMO = ["localhost", "127.0.0.1", ""].includes(location.hostname);
   const form = document.getElementById("waitlist");
   const msg = document.getElementById("msg");
-  function show(text, ok) {
-    msg.className = "msg " + (ok ? "ok" : "err");
-    msg.textContent = text;
-  }
+  function show(text, ok) { msg.className = "msg " + (ok ? "ok" : "err"); msg.textContent = text; }
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = form.email.value.trim();
@@ -378,36 +383,22 @@
       form.email.focus();
       return;
     }
-    const data = {
-      "form-name": "waitlist",
-      web: form.web.value,
-      email,
-      perfil: [...form.querySelectorAll("[name=perfil]:checked")].map(x => x.value).join(", "),
-      juego: [...form.querySelectorAll("[name=juego]:checked")].map(x => x.value).join(", "),
-      gasto: form.gasto.value,
-      dolor: form.dolor.value.trim()
-    };
+    const joined = (name) => [...form.querySelectorAll(`[name=${name}]:checked`)].map((x) => x.value).join(", ");
+    const data = { "form-name": "waitlist", web: form.web.value, email, perfil: joined("perfil"), juego: joined("juego") };
     const btn = form.querySelector("button");
     btn.disabled = true;
-    btn.textContent = "Enviando…";
     try {
-      if (DEMO) {
-        console.info("[modo demo] Datos del formulario:", data);
-      } else {
-        const res = await fetch("/", {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams(data).toString()
-        });
+      if (DEMO) console.info("[modo demo] Datos del formulario:", data);
+      else {
+        const res = await fetch("/", { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(data).toString() });
         if (!res.ok) throw new Error(res.status);
       }
       form.reset();
-      show("¡Listo! Estás en la lista. Te avisaremos en cuanto abramos la beta.", true);
-    } catch (err) {
+      show("Hecho. Te avisaremos de las novedades.", true);
+    } catch {
       show("No se pudo enviar. Inténtalo de nuevo en un momento.", false);
     } finally {
       btn.disabled = false;
-      btn.textContent = "Quiero acceso anticipado";
     }
   });
 </script>

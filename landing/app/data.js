@@ -16,6 +16,8 @@ const $ = (id) => document.getElementById(id);
 const eur = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
 const fmt = (n) => (n == null ? "–" : eur.format(n));
 
+const ic = (name) => `<svg class="i" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
 }
@@ -139,7 +141,10 @@ const GAMES = {
       return {
         id: raw.id, name: raw.name, logo: null,
         meta: ["One Piece Card Game", parallels ? `incluye ${parallels} paralelas` : null],
-        cards: raw.cards.map((c) => ({ ...c, img: c.image, big: c.image, imgFallback: null })),
+        // Imagen limpia de CardTrader si la hay; la de optcgapi (con marca "SAMPLE") solo como respaldo
+        cards: raw.cards.map((c) => (c.ctimg
+          ? { ...c, img: "https://cardtrader.com" + c.ctimg.replace(/\/([^/]+)$/, "/preview_$1"), big: "https://cardtrader.com" + c.ctimg, imgFallback: c.image }
+          : { ...c, img: c.image, big: c.image, imgFallback: null })),
       };
     },
     price: null,   // los precios ya vienen en los datos del set

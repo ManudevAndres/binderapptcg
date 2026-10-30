@@ -7,23 +7,45 @@
 <meta name="description" content="Marca las cartas que tienes, crea listas, llena el carrito y descubre la compra más barata con envíos incluidos.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
+<!-- Iconos -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <g id="i-g" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></g>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="3" width="7" height="9" rx="1.5"/><rect x="13" y="3" width="7" height="9" rx="1.5"/><rect x="4" y="14" width="7" height="7" rx="1.5"/><rect x="13" y="14" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-binder" viewBox="0 0 24 24"><path d="M6 3h13a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M4 8h3M4 12h3M4 16h3M12 8h4M12 12h4"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1Z"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 9a6 6 0 1 1 12 0c0 6 2.500 7 2.500 7h-17S6 15 6 9Z"/><path d="M10 20a2.200 2.200 0 0 0 4 0"/></symbol>
+    <symbol id="i-cart" viewBox="0 0 24 24"><circle cx="9" cy="20" r="1.500"/><circle cx="18" cy="20" r="1.500"/><path d="M2 3h3l2.600 12.400a1 1 0 0 0 1 .8h9.400a1 1 0 0 0 1-.8L21 7H6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+    <symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4M11 8v6M8 11h6"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="4"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.500 4-6 8-6s7 1.500 8 6"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="M3 7l6 6 4-4 8 8M15 17h6v-6"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.500"/><path d="m21 16-5-5-9 9"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  </defs>
+</svg>
+
 <header class="top">
   <div class="wrap top-inner">
-    <a class="logo" href="../"><span class="logo-mark"></span>Binder</a>
-    <span class="beta">beta</span>
-    <nav class="nav" id="nav">
-      <a href="#/explorar" data-nav="explorar"><span class="ni">🔎</span><span>Explorar</span></a>
-      <a href="#/coleccion" data-nav="coleccion"><span class="ni">📚</span><span>Mi colección</span></a>
-      <a href="#/listas" data-nav="listas"><span class="ni">⭐</span><span>Listas</span></a>
-      <a href="#/alertas" data-nav="alertas"><span class="ni">🔔</span><span>Alertas</span><b class="badge" id="alert-badge" hidden>0</b></a>
-      <a href="#/carrito" data-nav="carrito"><span class="ni">🛒</span><span>Carrito</span><b class="badge" id="cart-badge" hidden>0</b></a>
+    <a class="logo" href="../" aria-label="Binder, ir a la portada"><span class="logo-mark"></span>Binder</a>
+    <nav class="nav" id="nav" aria-label="Principal">
+      <a href="#/explorar" data-nav="explorar"><svg class="i"><use href="#i-grid"/></svg><span>Explorar</span></a>
+      <a href="#/coleccion" data-nav="coleccion"><svg class="i"><use href="#i-binder"/></svg><span>Colección</span></a>
+      <a href="#/listas" data-nav="listas"><svg class="i"><use href="#i-bookmark"/></svg><span>Listas</span></a>
+      <a href="#/alertas" data-nav="alertas"><svg class="i"><use href="#i-bell"/></svg><span>Alertas</span><b class="badge" id="alert-badge" hidden>0</b></a>
+      <a href="#/carrito" data-nav="carrito"><svg class="i"><use href="#i-cart"/></svg><span>Carrito</span><b class="badge" id="cart-badge" hidden>0</b></a>
     </nav>
-    <button class="btn-ghost small" id="btn-account">Entrar</button>
+    <button class="btn-ghost small account-btn" id="btn-account">Entrar</button>
   </div>
 </header>
 
@@ -31,17 +53,16 @@
 
   <!-- Explorar: elegir set -->
   <section id="view-sets" class="view" hidden>
-    <div class="seg game-tabs" id="game-tabs" role="tablist">
-      <button data-game="pokemon" class="on">Pokémon</button>
-      <button data-game="onepiece">One Piece</button>
-    </div>
-    <div class="intro">
-      <h1 id="intro-title">Elige un set de Pokémon</h1>
-      <p>Marca las cartas que tienes y te decimos cuánto cuesta completarlo con precios de Cardmarket actualizados a diario.</p>
+    <div class="page-head">
+      <h1 id="intro-title">Sets de Pokémon</h1>
+      <div class="seg" id="game-tabs" role="group" aria-label="Juego">
+        <button data-game="pokemon" class="on">Pokémon</button>
+        <button data-game="onepiece">One Piece</button>
+      </div>
     </div>
     <div class="toolbar">
-      <input type="search" id="set-search" placeholder="Buscar set (ej.: Oscuridad, 151, Romance…)" autocomplete="off">
-      <label class="lang-pref">Idioma de mis cartas <span id="lang-pref-sets"></span></label>
+      <div class="search"><svg class="i"><use href="#i-search"/></svg><input type="search" id="set-search" placeholder="Buscar set" aria-label="Buscar set" autocomplete="off"></div>
+      <div class="lang-pref"><span>Idioma de mis cartas</span><span id="lang-pref-sets"></span></div>
     </div>
     <div class="set-list" id="all-sets"><p class="muted">Cargando sets…</p></div>
   </section>
@@ -53,68 +74,72 @@
       <img id="set-logo" alt="" hidden>
       <div class="set-head-info">
         <h1 id="set-name"></h1>
-        <p class="muted" id="set-meta"></p>
-        <div class="progress big"><i id="set-progress"></i></div>
+        <p class="muted tiny" id="set-meta"></p>
       </div>
     </div>
+    <div class="progress big"><i id="set-progress"></i></div>
 
-    <div class="stats">
-      <div class="stat"><span>Tengo</span><b id="st-have">–</b></div>
-      <div class="stat"><span>Me faltan</span><b id="st-miss">–</b></div>
-      <div class="stat accent"><span>Coste para completar</span><b id="st-cost">–</b></div>
-      <div class="stat"><span>Valor de lo que tengo</span><b id="st-value">–</b></div>
-    </div>
+    <dl class="metrics">
+      <div><dt>Tengo</dt><dd id="st-have">–</dd></div>
+      <div><dt>Me faltan</dt><dd id="st-miss">–</dd></div>
+      <div class="accent"><dt>Completar el set</dt><dd id="st-cost">–</dd></div>
+      <div><dt>Valor de lo mío</dt><dd id="st-value">–</dd></div>
+    </dl>
     <p class="muted tiny" id="price-status"></p>
 
     <div class="toolbar sticky">
-      <div class="seg" id="card-filter" role="tablist">
+      <div class="seg" id="card-filter" role="group" aria-label="Filtrar cartas">
         <button data-filter="all" class="on">Todas</button>
         <button data-filter="have">Tengo</button>
         <button data-filter="miss">Faltan</button>
       </div>
-      <input type="search" id="card-search" placeholder="Buscar carta…" autocomplete="off">
+      <div class="search"><svg class="i"><use href="#i-search"/></svg><input type="search" id="card-search" placeholder="Buscar carta" aria-label="Buscar carta" autocomplete="off"></div>
       <div class="toolbar-actions">
-        <button class="btn-ghost small" id="btn-all">Marcar todas</button>
-        <button class="btn-ghost small" id="btn-none">Desmarcar todas</button>
-        <button class="btn-ghost small" id="btn-scan">📷 Escanear</button>
-        <button class="btn-ghost small" id="btn-list">Lista de faltantes</button>
-        <button class="btn small" id="btn-miss-cart">🛒 Faltantes al carrito</button>
+        <span id="lang-pref-set" class="lang-inline"></span>
+        <button class="icon-btn boxed" id="btn-scan" aria-label="Escanear cartas" title="Escanear cartas"><svg class="i"><use href="#i-camera"/></svg></button>
+        <div class="menu-wrap">
+          <button class="icon-btn boxed" id="btn-more" aria-label="Más opciones" aria-expanded="false" aria-haspopup="true"><svg class="i"><use href="#i-more"/></svg></button>
+          <div class="menu" id="more-menu" hidden>
+            <button id="btn-list">Ver lista de faltantes</button>
+            <button id="btn-all">Marcar todas</button>
+            <button id="btn-none">Desmarcar todas</button>
+          </div>
+        </div>
+        <button class="btn small" id="btn-miss-cart"><svg class="i"><use href="#i-cart"/></svg>Faltantes al carrito</button>
       </div>
     </div>
-    <p class="muted tiny hint">Toca una carta para marcar que la <b>tienes</b> en el idioma elegido: <span id="lang-pref-set"></span> Usa 🔍 para verla en grande o elegir otro idioma, y 🛒 para añadirla al carrito.</p>
+    <p class="hint" id="set-hint">Toca una carta para marcar que la tienes. <button class="link-btn" id="btn-hint-ok">Entendido</button></p>
 
     <div class="cards" id="cards"></div>
   </section>
 
   <!-- Mi colección -->
   <section id="view-collection" class="view" hidden>
-    <div class="intro"><h1>Mi colección</h1><p>Todas tus cartas, de todos los sets.</p></div>
-    <div class="stats">
-      <div class="stat"><span>Cartas</span><b id="col-count">–</b></div>
-      <div class="stat"><span>Sets</span><b id="col-sets">–</b></div>
-      <div class="stat accent"><span>Valor estimado</span><b id="col-value">–</b></div>
-      <div class="stat"><span>Últimos 30 días</span><b id="col-delta">–</b></div>
-    </div>
+    <div class="page-head"><h1>Mi colección</h1></div>
+    <dl class="metrics">
+      <div><dt>Cartas</dt><dd id="col-count">–</dd></div>
+      <div><dt>Sets</dt><dd id="col-sets">–</dd></div>
+      <div class="accent"><dt>Valor estimado</dt><dd id="col-value">–</dd></div>
+      <div><dt>Últimos 30 días</dt><dd id="col-delta">–</dd></div>
+    </dl>
     <div class="portfolio" id="portfolio" hidden>
-      <div class="pf-chart">
+      <div class="panel pf-chart">
         <div class="pf-head"><b>Evolución del valor</b><small class="muted" id="col-chart-note"></small></div>
         <div id="col-chart"></div>
       </div>
-      <div class="pf-movers">
-        <h3>📈 Las que más suben <small class="muted">(30 días)</small></h3>
-        <ol class="movers" id="col-up"></ol>
-        <h3>📉 Las que más bajan</h3>
-        <ol class="movers" id="col-down"></ol>
+      <div class="panel pf-movers" id="pf-movers">
+        <div id="col-up-box"><h3><svg class="i up"><use href="#i-up"/></svg>Más suben <small class="muted">30 días</small></h3><ol class="movers" id="col-up"></ol></div>
+        <div id="col-down-box"><h3><svg class="i down"><use href="#i-down"/></svg>Más bajan <small class="muted">30 días</small></h3><ol class="movers" id="col-down"></ol></div>
       </div>
     </div>
     <div class="toolbar">
-      <div class="seg" id="col-game">
+      <div class="seg" id="col-game" role="group" aria-label="Juego">
         <button data-g="" class="on">Todo</button>
         <button data-g="pokemon">Pokémon</button>
         <button data-g="onepiece">One Piece</button>
       </div>
-      <input type="search" id="col-search" placeholder="Buscar en mi colección…" autocomplete="off">
-      <select id="col-sort" class="select">
+      <div class="search"><svg class="i"><use href="#i-search"/></svg><input type="search" id="col-search" placeholder="Buscar en mi colección" aria-label="Buscar en mi colección" autocomplete="off"></div>
+      <select id="col-sort" class="select" aria-label="Ordenar">
         <option value="value">Más valiosas</option>
         <option value="name">Nombre</option>
         <option value="set">Set</option>
@@ -125,10 +150,10 @@
 
   <!-- Listas -->
   <section id="view-lists" class="view" hidden>
-    <div class="intro"><h1>Mis listas</h1><p>Colecciones a tu medida: tus cartas favoritas, un mazo, todas las de un personaje…</p></div>
+    <div class="page-head"><h1>Mis listas</h1></div>
     <form class="new-list" id="new-list-form">
-      <input id="new-list-name" placeholder="Nombre de la lista (ej.: Luffys, Mazo rojo…)" maxlength="60" required>
-      <button class="btn small" type="submit">Crear lista</button>
+      <input id="new-list-name" placeholder="Nueva lista: Luffys, mazo rojo…" aria-label="Nombre de la lista" maxlength="60" required>
+      <button class="btn small" type="submit">Crear</button>
     </form>
     <div class="set-list" id="lists"></div>
   </section>
@@ -136,34 +161,35 @@
   <!-- Una lista -->
   <section id="view-list" class="view" hidden>
     <a class="back" href="#/listas">← Mis listas</a>
-    <div class="list-head">
-      <h1 id="list-name"></h1>
+    <div class="page-head">
+      <div><h1 id="list-name"></h1><p class="muted tiny" id="list-meta"></p></div>
       <div class="toolbar-actions">
         <button class="btn-ghost small" id="btn-list-rename">Renombrar</button>
         <button class="btn-ghost small" id="btn-list-delete">Borrar</button>
-        <button class="btn small" id="btn-list-cart">🛒 Faltantes al carrito</button>
+        <button class="btn small" id="btn-list-cart"><svg class="i"><use href="#i-cart"/></svg>Faltantes al carrito</button>
       </div>
     </div>
-    <p class="muted" id="list-meta"></p>
     <div class="cards" id="list-cards"></div>
   </section>
 
   <!-- Alertas de precio -->
   <section id="view-alerts" class="view" hidden>
-    <div class="intro"><h1>Alertas de precio</h1><p>Te avisamos cuando una carta baje del precio que tú digas. Créalas desde la lupa 🔍 de cualquier carta.</p></div>
-    <div class="toolbar"><button class="btn-ghost small" id="btn-notify">🔔 Activar avisos del navegador</button></div>
+    <div class="page-head">
+      <h1>Alertas de precio</h1>
+      <button class="btn-ghost small" id="btn-notify"><svg class="i"><use href="#i-bell"/></svg>Activar avisos del navegador</button>
+    </div>
     <div class="alert-list" id="alert-list"></div>
   </section>
 
   <!-- Carrito -->
   <section id="view-cart" class="view" hidden>
-    <div class="intro"><h1>Carrito</h1><p>Añade cartas desde cualquier set o lista y te calculamos la forma más barata de comprarlas.</p></div>
+    <div class="page-head"><h1>Carrito</h1></div>
     <div class="cart-layout">
       <div>
         <div class="cart-items" id="cart-items"></div>
         <div class="cart-tools" id="cart-tools">
-          <button class="btn-ghost small" id="btn-cart-copy">Copiar lista</button>
-          <button class="btn-ghost small" id="btn-cart-clear">Vaciar carrito</button>
+          <button class="link-btn" id="btn-cart-copy">Copiar lista</button>
+          <button class="link-btn" id="btn-cart-clear">Vaciar carrito</button>
         </div>
       </div>
       <aside class="cart-summary" id="cart-summary"></aside>
@@ -174,35 +200,46 @@
 <!-- Lupa: ficha de una carta -->
 <div class="modal" id="card-modal" hidden>
   <div class="modal-bg" data-close></div>
-  <div class="modal-panel" role="dialog" aria-labelledby="cm-name">
-    <button class="icon-btn modal-close" data-close aria-label="Cerrar">✕</button>
-    <button class="nav-arrow prev" id="cm-prev" aria-label="Anterior">‹</button>
-    <button class="nav-arrow next" id="cm-next" aria-label="Siguiente">›</button>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="cm-name">
+    <button class="icon-btn modal-close" data-close aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button>
+    <button class="nav-arrow prev" id="cm-prev" aria-label="Carta anterior">‹</button>
+    <button class="nav-arrow next" id="cm-next" aria-label="Carta siguiente">›</button>
     <div class="cm-img" id="cm-img"></div>
     <div class="cm-info">
       <p class="muted tiny" id="cm-set"></p>
       <h2 id="cm-name"></h2>
       <p class="cm-price" id="cm-price"></p>
-      <p class="tiny muted">Idioma</p>
-      <div class="chips cm-langs" id="cm-langs"></div>
-      <p class="tiny cm-ct" id="cm-ct"></p>
+
+      <div class="cm-block">
+        <div class="chips cm-langs" id="cm-langs" role="group" aria-label="Idioma"></div>
+        <p class="tiny cm-ct" id="cm-ct"></p>
+      </div>
       <div class="cm-actions">
+        <button class="btn" id="cm-cart"></button>
         <button class="btn-ghost" id="cm-owned"></button>
-        <button class="btn" id="cm-cart">🛒 Añadir al carrito</button>
-        <button class="btn-ghost" id="cm-ct-add" hidden>⚡ Comprar ya en CardTrader</button>
       </div>
-      <form class="cm-alert" id="cm-alert">
-        <label for="cm-alert-price">🔔 Avisarme si baja de</label>
-        <input id="cm-alert-price" type="number" min="0.01" step="0.01" inputmode="decimal" required>
-        <span>€</span>
-        <button class="btn-ghost small" type="submit" id="cm-alert-btn">Crear alerta</button>
-      </form>
-      <p class="tiny muted" id="cm-alert-msg"></p>
-      <div class="cm-lists">
-        <p class="tiny muted">Añadir a una lista</p>
+
+      <div class="cm-links" id="cm-links"></div>
+      <button class="btn-ghost small cm-ct-add" id="cm-ct-add" hidden></button>
+
+      <details class="cm-more" id="cm-alert-box">
+        <summary><svg class="i"><use href="#i-bell"/></svg>Alerta de precio</summary>
+        <form class="cm-alert" id="cm-alert">
+          <label for="cm-alert-price">Avisarme si baja de</label>
+          <input id="cm-alert-price" type="number" min="0.01" step="0.01" inputmode="decimal" required>
+          <span>€</span>
+          <button class="btn-ghost small" type="submit" id="cm-alert-btn">Crear</button>
+        </form>
+        <p class="tiny muted" id="cm-alert-msg"></p>
+      </details>
+      <details class="cm-more">
+        <summary><svg class="i"><use href="#i-bookmark"/></svg>Añadir a una lista</summary>
         <div class="chips" id="cm-lists"></div>
-      </div>
-      <p class="tiny cm-links" id="cm-links"></p>
+        <form class="cm-newlist" id="cm-newlist" hidden>
+          <input id="cm-newlist-name" placeholder="Nombre de la lista" aria-label="Nombre de la nueva lista" maxlength="60" required>
+          <button class="btn-ghost small" type="submit">Crear</button>
+        </form>
+      </details>
     </div>
   </div>
 </div>
@@ -210,10 +247,10 @@
 <!-- Lista de faltantes de un set -->
 <div class="drawer" id="drawer" hidden>
   <div class="drawer-bg" data-close></div>
-  <aside class="drawer-panel" role="dialog" aria-labelledby="drawer-title">
+  <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
     <div class="drawer-head">
       <h2 id="drawer-title">Lista de faltantes</h2>
-      <button class="icon-btn" data-close aria-label="Cerrar">✕</button>
+      <button class="icon-btn" data-close aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button>
     </div>
     <p class="muted" id="drawer-sum"></p>
     <div class="drawer-actions">
@@ -221,15 +258,15 @@
       <button class="btn-ghost small" id="btn-csv">Descargar CSV</button>
     </div>
     <ol class="miss-list" id="miss-list"></ol>
-    <p class="muted tiny">Precio = tendencia de Cardmarket (Near Mint, versión normal). Es orientativo: el precio final depende del vendedor y del envío.</p>
+    <p class="muted tiny">Precio de tendencia de Cardmarket. Es orientativo: el precio final depende del vendedor y del envío.</p>
   </aside>
 </div>
 
 <!-- Escáner -->
 <div class="modal" id="scan-modal" hidden>
   <div class="modal-bg" data-close></div>
-  <div class="modal-panel small scan-panel" role="dialog" aria-labelledby="scan-title">
-    <button class="icon-btn modal-close" data-close aria-label="Cerrar">✕</button>
+  <div class="modal-panel small scan-panel" role="dialog" aria-modal="true" aria-labelledby="scan-title">
+    <button class="icon-btn modal-close" data-close aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button>
     <h2 id="scan-title">Escanear cartas</h2>
     <p class="tiny muted" id="scan-help"></p>
     <div class="scan-view">
@@ -238,22 +275,22 @@
     </div>
     <p class="scan-status" id="scan-status">Preparando la cámara…</p>
     <div class="scan-found" id="scan-found"></div>
-    <label class="btn-ghost small scan-upload">🖼️ O sube una foto<input type="file" accept="image/*" capture="environment" id="scan-file" hidden></label>
+    <label class="btn-ghost small scan-upload"><svg class="i"><use href="#i-image"/></svg>O sube una foto<input type="file" accept="image/*" capture="environment" id="scan-file" hidden></label>
   </div>
 </div>
 
 <!-- Cuenta -->
 <div class="modal" id="account-modal" hidden>
   <div class="modal-bg" data-close></div>
-  <div class="modal-panel small" role="dialog" aria-labelledby="acc-title">
-    <button class="icon-btn modal-close" data-close aria-label="Cerrar">✕</button>
+  <div class="modal-panel small" role="dialog" aria-modal="true" aria-labelledby="acc-title">
+    <button class="icon-btn modal-close" data-close aria-label="Cerrar"><svg class="i"><use href="#i-x"/></svg></button>
     <div id="account-body"></div>
   </div>
 </div>
 
-<div class="toast" id="toast" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
 
-<footer class="wrap foot">Datos de cartas e imágenes: <a href="https://tcgdex.dev" target="_blank" rel="noopener">TCGdex</a> (Pokémon) y <a href="https://optcgapi.com" target="_blank" rel="noopener">OPTCG API</a> (One Piece) · Precios: Cardmarket y CardTrader · Binder es un proyecto independiente, sin relación con The Pokémon Company, Bandai, Cardmarket ni CardTrader.</footer>
+<footer class="wrap foot">Datos: <a href="https://tcgdex.dev" target="_blank" rel="noopener">TCGdex</a>, <a href="https://optcgapi.com" target="_blank" rel="noopener">OPTCG API</a>, Cardmarket y CardTrader. Proyecto independiente, sin relación con The Pokémon Company, Bandai, Cardmarket ni CardTrader.</footer>
 
 <script src="data.js"></script>
 <script src="state.js"></script>
