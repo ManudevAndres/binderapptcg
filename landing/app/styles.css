@@ -201,6 +201,17 @@ input::placeholder { color: var(--muted); }
 .chip-btn:hover { background: var(--card-2); }
 .chip-btn.on { border-color: var(--accent); background: rgba(255,203,61,.1); }
 .chip-btn.new { color: var(--muted); }
+.cm-own { margin-top: 10px; background: var(--card); border-radius: 11px; padding: 10px 12px; font-size: 14px; display: grid; gap: 8px; }
+.cm-own-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cm-own .qty button { width: 28px; height: 28px; }
+.cm-own .qty button:disabled { opacity: .4; cursor: default; }
+.cm-paid-box { display: inline-flex; align-items: center; gap: 6px; }
+.cm-paid-box input { width: 88px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font: 14px Inter, sans-serif; text-align: right; }
+#cm-gain { margin: 0; color: var(--muted); }
+#cm-gain:empty { display: none; }
+.c .copies { position: absolute; left: 30px; bottom: 6px; background: rgba(14,15,26,.86); color: #fff; font-size: 11px; font-weight: 700; padding: 1px 5px; border-radius: 5px; pointer-events: none; }
+#col-gain-note { margin: 6px 0 0; font-size: 12px; }
+#col-gain-note:empty { display: none; }
 .cm-links { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; font-size: 13px; }
 .cm-links .ml-title { color: var(--muted); margin-right: 3px; display: inline-flex; gap: 5px; align-items: center; }
 .cm-links a { text-decoration: none; background: var(--card); border-radius: 8px; padding: 5px 9px; }

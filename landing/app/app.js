@@ -16,6 +16,7 @@ const game = () => GAMES[gameId];
 
 // ---------- Utilidades ----------
 const cents = (c) => fmt(c / 100);
+const signed = (n) => (n >= 0 ? "+" : "") + fmt(n);
 const countryName = (() => {
   try { const dn = new Intl.DisplayNames(["es"], { type: "region" }); return (c) => (c ? dn.of(c) : "?"); }
   catch { return (c) => c || "?"; }
@@ -138,6 +139,7 @@ function cardTile(card, g, set, { mode = "toggle", sub = null } = {}) {
       </button>
       <span class="check" aria-hidden="true">✓</span>
       <span class="flag" title="${has ? langName(State.ownedLang(card.id)) : ""}">${has ? flag(State.ownedLang(card.id)) : ""}</span>
+      <span class="copies"${State.copies(card.id) > 1 ? "" : " hidden"}>×${State.copies(card.id)}</span>
       ${card.parallel ? `<span class="tag">Paralela</span>` : ""}
       <div class="c-tools">
         <button class="tool" data-act="zoom" aria-label="Ver en grande" title="Ver en grande">${ic("zoom")}</button>
@@ -163,6 +165,9 @@ function refreshTile(id) {
     const fl = el.querySelector(".flag");
     fl.innerHTML = has ? flag(State.ownedLang(id)) : "";
     fl.title = has ? langName(State.ownedLang(id)) : "";
+    const cp = el.querySelector(".copies");
+    cp.hidden = State.copies(id) <= 1;
+    cp.textContent = "×" + State.copies(id);
     const qty = State.cartQty(id);
     const cartBtn = el.querySelector('[data-act="cart"]');
     cartBtn.classList.toggle("on", qty > 0);
@@ -170,6 +175,11 @@ function refreshTile(id) {
     const p = el.querySelector(".price");
     if (p) p.outerHTML = priceLabel(prices.get(id));
   });
+}
+
+// Quitar una carta borra sus copias y lo que pagaste: se confirma solo si hay algo que perder
+function confirmRemove(card) {
+  return !State.hasDetails(card.id) || confirm(`¿Quitar ${card.name} de tu colección? Se borrarán sus copias y el precio que pagaste.`);
 }
 
 // Un solo manejador para todas las cuadrículas
@@ -181,6 +191,7 @@ function gridClick(e, sequence) {
   if (!t) return;
   const act = btn.dataset.act;
   if (act === "toggle") {
+    if (State.has(t.card.id) && !confirmRemove(t.card)) return;
     State.setOwned(t.card, t.g, t.set, !State.has(t.card.id));
     if ((filter === "have" && !State.has(t.card.id)) || (filter === "miss" && State.has(t.card.id))) el.remove();
     else refreshTile(t.card.id);
@@ -254,6 +265,7 @@ function renderModal() {
   $("cm-cart").innerHTML = `${ic("cart")}${qty ? `En el carrito (${qty}) · añadir otra` : "Añadir al carrito"} ${flag(lang)}`;
 
   renderModalAlert(card, lang);
+  renderModalOwn(card);
 
   const lists = State.data.lists;
   $("cm-lists").innerHTML = lists.map((l) =>
@@ -283,11 +295,38 @@ function modalContext() {
   return { ...t, card: withCm(t.card), lang: modalLang || State.ownedLang(t.card.id) || State.lang(t.g) };
 }
 
+// Copias y precio pagado (solo si tengo la carta)
+function renderModalOwn(card) {
+  const has = State.has(card.id);
+  $("cm-own").hidden = !has;
+  if (!has) return;
+  const q = State.copies(card.id);
+  const paid = State.paid(card.id);
+  $("cm-q").textContent = q;
+  $("cm-q-minus").disabled = q <= 1;
+  const input = $("cm-paid");
+  if (document.activeElement !== input) input.value = paid ?? "";
+  const price = prices.get(card.id)?.price;
+  $("cm-gain").innerHTML = paid != null && price != null
+    ? `Ganancia: <b class="${price >= paid ? "up" : "down"}">${signed((price - paid) * q)}</b> con ${q} ${q === 1 ? "copia" : "copias"} a ${fmt(price)}`
+    : "";
+}
+$("cm-q-minus").onclick = () => { const { card } = modalContext(); State.setCopies(card.id, State.copies(card.id) - 1); refreshTile(card.id); renderModalOwn(card); };
+$("cm-q-plus").onclick = () => { const { card } = modalContext(); State.setCopies(card.id, State.copies(card.id) + 1); refreshTile(card.id); renderModalOwn(card); };
+$("cm-paid").onchange = (e) => {
+  const { card } = modalContext();
+  const v = e.target.value === "" ? null : Math.max(0, Number(e.target.value));
+  State.setPaid(card.id, Number.isNaN(v) ? null : v);
+  renderModalOwn(card);
+};
+
 $("cm-owned").onclick = () => {
   const { card, g, set, lang } = modalContext();
   const has = State.has(card.id);
-  if (has && State.ownedLang(card.id) === lang) State.setOwned(card, g, set, false);
-  else State.setOwned(card, g, set, true, lang);
+  if (has && State.ownedLang(card.id) === lang) {
+    if (!confirmRemove(card)) return;
+    State.setOwned(card, g, set, false);
+  } else State.setOwned(card, g, set, true, lang);
   refreshTile(card.id);
   if (current) updateSetStats();
   renderModal();
@@ -485,7 +524,7 @@ function updateSetStats() {
   for (const c of current.cards) {
     const p = prices.get(c.id);
     if (p !== undefined) loaded++;
-    if (State.has(c.id)) { have++; if (p?.price != null) value += p.price; }
+    if (State.has(c.id)) { have++; if (p?.price != null) value += p.price * State.copies(c.id); }
     else { missingTotal++; if (p?.price != null) { cost += p.price; missingPriced++; } }
   }
   $("st-have").textContent = `${have} / ${total}`;
@@ -565,7 +604,7 @@ async function showCollection() {
   const ids = Object.keys(State.data.owned);
   $("col-cards").innerHTML = ids.length ? `<p class="muted">Cargando tu colección…</p>` : emptyState("Aún no tienes cartas marcadas.", "Explora un set y toca las cartas que tienes.", "#/explorar", "Explorar sets");
   if (!ids.length) {
-    $("col-count").textContent = "0"; $("col-sets").textContent = "0"; $("col-value").textContent = fmt(0); $("col-delta").textContent = "–";
+    $("col-count").textContent = "0"; $("col-sets").textContent = "0 sets"; $("col-value").textContent = fmt(0); $("col-delta").textContent = "–"; $("col-gain").textContent = "–"; $("col-gain-note").textContent = "";
     $("portfolio").hidden = true;
     return;
   }
@@ -577,18 +616,22 @@ async function showCollection() {
 
 // Valor de la colección hoy y hace 7 / 30 días (medias de Cardmarket), y cartas que más se mueven
 function portfolioStats(ids) {
-  let now = 0, d7 = 0, d30 = 0;
+  let now = 0, d7 = 0, d30 = 0, invested = 0, worth = 0, tracked = 0;
   const movers = [];
   for (const id of ids) {
     const p = prices.get(id);
     if (p?.price == null) continue;
-    now += p.price;
-    d7 += p.p7 ?? p.price;
-    d30 += p.p30 ?? p.price;
+    const q = State.copies(id);
+    now += p.price * q;
+    d7 += (p.p7 ?? p.price) * q;
+    d30 += (p.p30 ?? p.price) * q;
+    // La ganancia solo cuenta las cartas de las que sé lo que pagué
+    const paid = State.paid(id);
+    if (paid != null) { invested += paid * q; worth += p.price * q; tracked++; }
     if (p.p30 >= 0.5) movers.push({ id, pct: (p.price - p.p30) / p.p30, diff: p.price - p.p30 });
   }
   movers.sort((a, b) => b.pct - a.pct);
-  return { now, d7, d30, up: movers.filter((m) => m.pct > 0.02).slice(0, 5), down: movers.filter((m) => m.pct < -0.02).reverse().slice(0, 5) };
+  return { now, d7, d30, invested, worth, tracked, up: movers.filter((m) => m.pct > 0.02).slice(0, 5), down: movers.filter((m) => m.pct < -0.02).reverse().slice(0, 5) };
 }
 
 const pct = (x) => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(1).replace(".", ",")} %`;
@@ -618,7 +661,14 @@ function renderPortfolio(ids, record) {
   $("portfolio").hidden = false;
   const delta = s.d30 ? (s.now - s.d30) / s.d30 : 0;
   $("col-delta").innerHTML = s.d30 ? `<span class="${delta >= 0 ? "up" : "down"}">${pct(delta)}</span>` : "–";
-  if (record && s.now > 0) State.recordValue(Math.round(s.now * 100) / 100, ids.length);
+  const gain = s.worth - s.invested;
+  $("col-gain").innerHTML = s.tracked ? `<span class="${gain >= 0 ? "up" : "down"}">${signed(gain)}</span>` : "–";
+  $("col-gain-note").textContent = !s.tracked
+    ? "Para ver tu ganancia, abre una carta y apunta lo que pagaste por ella."
+    : s.tracked < ids.length
+      ? `Ganancia sobre ${s.tracked} de ${ids.length} cartas: las que tienen precio de compra (invertido: ${fmt(s.invested)}).`
+      : `Invertido: ${fmt(s.invested)}.`;
+  if (record && s.now > 0) State.recordValue(Math.round(s.now * 100) / 100, ids.reduce((n, id) => n + State.copies(id), 0));
 
   // Con pocas fotos diarias, se estima la tendencia con las medias de 30 y 7 días de Cardmarket
   const hist = State.data.history;
@@ -653,15 +703,20 @@ function renderCollection(record = false) {
   const ids = Object.keys(State.data.owned);
   let items = ids.map(fromMeta);
   const sets = new Set(items.map((x) => x.g + x.set.id));
-  const value = items.reduce((s, x) => s + (prices.get(x.card.id)?.price || 0), 0);
-  $("col-count").textContent = items.length;
-  $("col-sets").textContent = sets.size;
+  const value = items.reduce((s, x) => s + (prices.get(x.card.id)?.price || 0) * State.copies(x.card.id), 0);
+  $("col-count").textContent = ids.reduce((n, id) => n + State.copies(id), 0);
+  $("col-sets").textContent = `${sets.size} ${sets.size === 1 ? "set" : "sets"}`;
   $("col-value").textContent = fmt(value);
   renderPortfolio(ids, record);
 
   items = items.filter((x) => (!colGame || x.g === colGame) && (!q || x.card.name.toLowerCase().includes(q) || (x.set.name || "").toLowerCase().includes(q)));
+  const gainOf = (id) => {
+    const paid = State.paid(id), price = prices.get(id)?.price;
+    return paid != null && price != null ? (price - paid) * State.copies(id) : -Infinity;
+  };
   items.sort((a, b) =>
-    sort === "name" ? a.card.name.localeCompare(b.card.name, "es")
+    sort === "gain" ? (gainOf(b.card.id) === gainOf(a.card.id) ? 0 : gainOf(b.card.id) - gainOf(a.card.id))
+    : sort === "name" ? a.card.name.localeCompare(b.card.name, "es")
     : sort === "set" ? (a.set.name || "").localeCompare(b.set.name || "", "es") || String(a.card.n).localeCompare(String(b.card.n), "es", { numeric: true })
     : (prices.get(b.card.id)?.price ?? -1) - (prices.get(a.card.id)?.price ?? -1));
 

@@ -117,11 +117,12 @@
   <section id="view-collection" class="view" hidden>
     <div class="page-head"><h1>Mi colección</h1></div>
     <dl class="metrics">
-      <div><dt>Cartas</dt><dd id="col-count">–</dd></div>
-      <div><dt>Sets</dt><dd id="col-sets">–</dd></div>
+      <div><dt>Cartas · <span id="col-sets">–</span></dt><dd id="col-count">–</dd></div>
       <div class="accent"><dt>Valor estimado</dt><dd id="col-value">–</dd></div>
+      <div><dt>Ganancia</dt><dd id="col-gain">–</dd></div>
       <div><dt>Últimos 30 días</dt><dd id="col-delta">–</dd></div>
     </dl>
+    <p class="muted tiny" id="col-gain-note"></p>
     <div class="portfolio" id="portfolio" hidden>
       <div class="panel pf-chart">
         <div class="pf-head"><b>Evolución del valor</b><small class="muted" id="col-chart-note"></small></div>
@@ -141,6 +142,7 @@
       <div class="search"><svg class="i"><use href="#i-search"/></svg><input type="search" id="col-search" placeholder="Buscar en mi colección" aria-label="Buscar en mi colección" autocomplete="off"></div>
       <select id="col-sort" class="select" aria-label="Ordenar">
         <option value="value">Más valiosas</option>
+        <option value="gain">Más ganancia</option>
         <option value="name">Nombre</option>
         <option value="set">Set</option>
       </select>
@@ -217,6 +219,17 @@
       <div class="cm-actions">
         <button class="btn" id="cm-cart"></button>
         <button class="btn-ghost" id="cm-owned"></button>
+      </div>
+      <div class="cm-own" id="cm-own" hidden>
+        <div class="cm-own-row">
+          <span>Copias</span>
+          <div class="qty"><button type="button" id="cm-q-minus" aria-label="Quitar una copia">−</button><span id="cm-q">1</span><button type="button" id="cm-q-plus" aria-label="Añadir una copia">+</button></div>
+        </div>
+        <div class="cm-own-row">
+          <label for="cm-paid">Pagué por copia</label>
+          <span class="cm-paid-box"><input id="cm-paid" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00"> €</span>
+        </div>
+        <p class="tiny" id="cm-gain"></p>
       </div>
 
       <div class="cm-links" id="cm-links"></div>

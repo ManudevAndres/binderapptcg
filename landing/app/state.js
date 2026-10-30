@@ -2,7 +2,7 @@
 // Cada perfil tiene sus propios datos: "invitado" (sin sesión, solo en este navegador) y uno por cuenta
 // (copia local + nube, ver auth.js). Al entrar o salir se cambia de perfil; nunca se mezclan solos.
 //
-// owned: { cardId: { g, s, l } }           cartas que tengo (juego, set e idioma)
+// owned: { cardId: { g, s, l, q, paid } }  cartas que tengo (juego, set, idioma, copias y € pagados por copia)
 // meta:  { cardId: { g, s, sn, name, n, code, img, big, par, cm } }   datos para mostrarlas fuera de su set
 // lists: [{ id, name, cards: [cardId], created }]
 // cart:  { "cardId@idioma": cantidad }
@@ -126,14 +126,25 @@ const State = (() => {
     ownedLang: (id) => data.owned[id]?.l || null,
     setOwned(card, g, set, value, l = null) {
       this.remember(card, g, set);
-      if (value) data.owned[card.id] = { g, s: set.id, l: l || data.owned[card.id]?.l || this.lang(g) };
+      if (value) data.owned[card.id] = { ...data.owned[card.id], g, s: set.id, l: l || data.owned[card.id]?.l || this.lang(g) };
       else delete data.owned[card.id];
       changed();
     },
+    copies: (id) => data.owned[id]?.q || (data.owned[id] ? 1 : 0),
+    paid: (id) => data.owned[id]?.paid ?? null,
+    setCopies(id, q) {
+      if (data.owned[id] && q >= 1) { data.owned[id].q = Math.min(999, q); changed(); }
+    },
+    // Precio pagado por copia en euros; null = no lo sé
+    setPaid(id, paid) {
+      if (data.owned[id]) { data.owned[id].paid = paid; changed(); }
+    },
+    // Marcar como no tenida borra copias y precio: se pide confirmación si hay algo que perder
+    hasDetails: (id) => (data.owned[id]?.q || 1) > 1 || data.owned[id]?.paid != null,
     setManyOwned(cards, g, set, value) {
       for (const c of cards) {
         this.remember(c, g, set);
-        if (value) data.owned[c.id] = { g, s: set.id, l: data.owned[c.id]?.l || this.lang(g) };
+        if (value) data.owned[c.id] = { ...data.owned[c.id], g, s: set.id, l: data.owned[c.id]?.l || this.lang(g) };
         else delete data.owned[c.id];
       }
       changed();
